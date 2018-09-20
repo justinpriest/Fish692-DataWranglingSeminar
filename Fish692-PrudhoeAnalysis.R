@@ -2,10 +2,15 @@
 
 library(dplyr)
 library(tidyr)
+library(lubridate)
 
 #read in the data
 allcatch <- read.csv("allcatch2001-2018.csv", header = TRUE)
-temp_salin <- read.csv("environ2001-2018.csv", header = TRUE)
+temp_salin <- read.csv("tempsalin2001-2018.csv", header = TRUE)
+
+#fix dates
+allcatch$EndDate <- ymd(as.POSIXct(allcatch$EndDate, format = "%m/%d/%Y"))
+temp_salin$Date <- ymd(as.POSIXct(temp_salin$Date, format = "%m/%d/%Y"))
 
 #Separate out the temp and salinity. Drop the columns that are irrelevant
 watertemps <- temp_salin %>% select(-c(Salin_Top, Salin_Mid, Salin_Bot, Salin_Bot_1.5))
@@ -16,6 +21,25 @@ rm(temp_salin) #optional but cleans up environment
 
 # wind and air temp data from NOAA NCEI
 # https://www.ncdc.noaa.gov/cdo-web/datasets/LCD/stations/WBAN:27406/detail
+# https://www1.ncdc.noaa.gov/pub/data/cdo/documentation/LCD_documentation.pdf
 # Station WBAN:27406
 # These data were downloaded in 10 year increments (LCD CSV). 
-# Then in Excel, I removed the hourly rows and left just the daily summary
+# Then in Excel, I removed the hourly rows/columns and left just the daily summary
+
+
+deadhorsewind <- read.csv("deadhorsewind_2001-2018_daily.csv", header = TRUE) %>%
+  select(DATE, DAILYAverageWindSpeed, DAILYPeakWindSpeed, PeakWindDirection, 
+         DAILYSustainedWindSpeed, DAILYSustainedWindDirection) %>% #remove extraneous data
+  rename(Date = DATE,
+         meanwindmph = DAILYAverageWindSpeed,
+         peakwindmph = DAILYPeakWindSpeed,
+         peakwinddir = PeakWindDirection,
+         sustwindmph = DAILYSustainedWindSpeed,
+         sustwinddir = DAILYSustainedWindDirection) %>% 
+  # change columns to be correct type
+  mutate(Date = ymd(as.POSIXct(Date, format = "%m/%d/%Y"))) %>%
+  mutate_if(sapply(deadhorsewind, is.factor), as.numeric) #change all remaining cols to numeric
+# last line code from: https://gist.github.com/ramhiser/93fe37be439c480dc26c4bed8aab03dd
+
+
+
