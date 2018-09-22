@@ -4,11 +4,14 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 library(lubridate)
+library(ggplot2)
 
 #read in the data
-allcatch <- read.csv("allcatch2001-2018.csv", header = TRUE)
-temp_salin <- read.csv("tempsalin2001-2018.csv", header = TRUE)
-
+allcatch <- read.csv("allcatch2001-2018.csv", header = TRUE) %>%
+  mutate(Station = factor(Station, levels = c("220", "218", "214", "230", "231")))
+temp_salin <- read.csv("tempsalin2001-2018.csv", header = TRUE) %>%
+  mutate(Station = factor(Station, levels = c("220", "218", "214", "230", "231")))
+str(allcatch)
 #fix dates
 allcatch$EndDate <- ymd(as.POSIXct(allcatch$EndDate, format = "%m/%d/%Y"))
 temp_salin$Date <- ymd(as.POSIXct(temp_salin$Date, format = "%m/%d/%Y"))
@@ -57,6 +60,7 @@ deadhorsewind <- deadhorsewind %>% select(Date, month, everything()) # reorder m
 
 ##### DISCHARGE #####
 # Data from USGS https://waterdata.usgs.gov/nwis/uv/?site_no=15908000
+# https://nwis.waterdata.usgs.gov/usa/nwis/uv/?cb_00060=on&format=rdb&site_no=15908000&period=&begin_date=2001-01-01&end_date=2018-09-01
 sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
   mutate(datetime = as.POSIXct(paste0(date, " ", time), format = "%m/%d/%Y %H:%M"),
          Date = as_date(datetime),
@@ -65,7 +69,7 @@ sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
   group_by(Date) %>% summarize(meandisch_cfs = mean(disch_cfs, na.rm = TRUE))
 
 
-head(sagdisch)
+
 
 
 
@@ -77,7 +81,80 @@ catchenviron <- left_join(allcatch, watersalin %>% select(-c(Year, Month)),
 
 
 
+###########################
+### Explore Response Variables ####
+ggplot(allcatch %>% filter(Species=="ARCS" & totcount>0), aes(x=(totcount))) + geom_histogram(bins = 30)
+ggplot(allcatch %>% filter(Species=="ARCD" & totcount>0), aes(x=totcount)) + geom_histogram(bins = 30)
+ggplot(allcatch %>% filter(Species=="BDWF" & totcount>0), aes(x=totcount)) + geom_histogram(bins = 30)
+ggplot(allcatch %>% filter(Species=="BDWF" & totcount>0), aes(x=log(totcount))) + geom_histogram(bins = 30)
+# note the slightly better distribution with the log transform
+ggplot(allcatch %>% filter(Species=="LSCS" ), aes(x=(day.of.year), y=totcount)) + geom_point() +
+  facet_wrap(~Year, scales = "free")
+# summary: most catches are of zeros or very low catch abundance, very right skewed
 
 
+###########################
+### Explore Explanatory Variables ####
+
+ggplot(watersalin %>% group_by(Year) %>% 
+         summarise(annsal=mean(c(Salin_Top, Salin_Mid, Salin_Bot), na.rm = TRUE)),
+       aes(x=Year, y=annsal)) + geom_line()
+
+ggplot(watertemps %>% group_by(Year) %>% 
+        summarise(anntemp=mean(c(Temp_Top, Temp_Mid, Temp_Bot), na.rm = TRUE)),
+      aes(x=Year, y=anntemp)) + geom_line()
+
+
+plottext_salin <- data.frame(label = c(
+    paste0("annual change: ", signif(coef(summary(lm(
+      Salin_Mid ~ Year, data=watersalin %>% filter(Station == 214))))[2,1], 2)),
+    paste0("annual change: ", signif(coef(summary(lm(
+      Salin_Mid ~ Year, data=watersalin %>% filter(Station == 218))))[2,1], 2)),
+    paste0("annual change: ", signif(coef(summary(lm(
+      Salin_Mid ~ Year, data=watersalin %>% filter(Station == 220))))[2,1], 2)),
+    paste0("annual change: ", signif(coef(summary(lm(
+      Salin_Mid ~ Year, data=watersalin %>% filter(Station == 230))))[2,1], 2)) ),
+  Station   = c(214, 218, 220, 230) )
+
+ggplot(watersalin %>% filter(Station != 231), aes(as.factor(Year), Salin_Mid)) + 
+  geom_boxplot() + scale_y_continuous(limits = c(0,35)) +
+  facet_wrap(~Station, nrow=2) +
+  geom_smooth(method="lm", aes(group=1)) +
+  geom_text(data = plottext_salin, 
+            mapping = aes(x=-Inf, y=-Inf, label = label),
+            hjust = -0.2, vjust = -15) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+plottext_temp <- data.frame(label = c(
+  paste0("annual change: ", signif(coef(summary(lm(
+    Temp_Mid ~ Year, data=watertemps %>% filter(Station == 214))))[2,1], 2)),
+  paste0("annual change: ", signif(coef(summary(lm(
+    Temp_Mid ~ Year, data=watertemps %>% filter(Station == 218))))[2,1], 2)),
+  paste0("annual change: ", signif(coef(summary(lm(
+    Temp_Mid ~ Year, data=watertemps %>% filter(Station == 220))))[2,1], 2)),
+  paste0("annual change: ", signif(coef(summary(lm(
+    Temp_Mid ~ Year, data=watertemps %>% filter(Station == 230))))[2,1], 2)) ),
+  Station   = c(214, 218, 220, 230) )
+
+ggplot(watertemps %>% filter(Station != 231), aes(as.factor(Year), Temp_Mid)) + 
+  geom_boxplot() + scale_y_continuous(limits = c(0,16)) +
+  facet_wrap(~Station, nrow=2) +
+  geom_smooth(method="lm", aes(group=1)) +
+  geom_text(data = plottext_temp, 
+            mapping = aes(x=-Inf, y=-Inf, label = label),
+            hjust = -0.2, vjust = -15) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+
+
+ggplot(watersalin, aes(as.factor(Year), Salin_Mid)) + geom_boxplot() + 
+  geom_smooth()
+
+head(watertemps)
 
 
