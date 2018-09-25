@@ -40,7 +40,8 @@ rm(temp_salin) #optional but cleans up environment
 # Then in Excel, I removed the hourly rows/columns and left just the daily summary
 
 
-deadhorsewind <- read.csv("deadhorsewind_2001-2018_daily.csv", header = TRUE) %>%
+deadhorsewind <- read.csv("deadhorsewind_2001-2018_daily.csv", header = TRUE, 
+                          stringsAsFactors = FALSE) %>%
   select(DATE, DAILYAverageWindSpeed, DAILYPeakWindSpeed, PeakWindDirection, 
          DAILYSustainedWindSpeed, DAILYSustainedWindDirection) %>% #remove extraneous data
   rename(Date = DATE,
@@ -49,13 +50,11 @@ deadhorsewind <- read.csv("deadhorsewind_2001-2018_daily.csv", header = TRUE) %>
          peakwinddir = PeakWindDirection,
          sustwindmph = DAILYSustainedWindSpeed,
          sustwinddir = DAILYSustainedWindDirection) %>% 
-  # change columns to be correct type
   mutate(Date = ymd(as.POSIXct(Date, format = "%m/%d/%Y")),
          month = month(Date)) %>%
-  mutate_if(sapply(deadhorsewind, is.factor), as.numeric) #change all remaining cols to numeric
-  # last line code from: https://gist.github.com/ramhiser/93fe37be439c480dc26c4bed8aab03dd
+  mutate_if(is.character, as.numeric) %>% select(Date, month, everything()) # reorder month column
 
-deadhorsewind <- deadhorsewind %>% select(Date, month, everything()) # reorder month column
+
 
 
 ##### DISCHARGE #####
@@ -104,7 +103,7 @@ ggplot(watertemps %>% group_by(Year) %>%
         summarise(anntemp=mean(c(Temp_Top, Temp_Mid, Temp_Bot), na.rm = TRUE)),
       aes(x=Year, y=anntemp)) + geom_line()
 
-
+#show how salinity has been changing
 plottext_salin <- data.frame(label = c(
     paste0("annual change: ", signif(coef(summary(lm(
       Salin_Mid ~ Year, data=watersalin %>% filter(Station == 214))))[2,1], 2)),
@@ -124,9 +123,11 @@ ggplot(watersalin %>% filter(Station != 231), aes(as.factor(Year), Salin_Mid)) +
             mapping = aes(x=-Inf, y=-Inf, label = label),
             hjust = -0.2, vjust = -15) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# salinity has significantly dropped for the eastern sites (230&214) 
+# and increased at the western sites (220&218)
 
 
-
+#show how temps have been increasing:
 plottext_temp <- data.frame(label = c(
   paste0("annual change: ", signif(coef(summary(lm(
     Temp_Mid ~ Year, data=watertemps %>% filter(Station == 214))))[2,1], 2)),
@@ -146,15 +147,13 @@ ggplot(watertemps %>% filter(Station != 231), aes(as.factor(Year), Temp_Mid)) +
             mapping = aes(x=-Inf, y=-Inf, label = label),
             hjust = -0.2, vjust = -15) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+#all 4 sites have had a significant increase in temperatures
 
 
 
+#Wind 
+ggplot(deadhorsewind %>% filter(month==7 | month==8), aes(x=sustwinddir)) + 
+  geom_histogram(col="black", bins = 40) + coord_polar()
 
-
-
-ggplot(watersalin, aes(as.factor(Year), Salin_Mid)) + geom_boxplot() + 
-  geom_smooth()
-
-head(watertemps)
 
 
