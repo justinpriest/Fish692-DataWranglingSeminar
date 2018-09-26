@@ -71,15 +71,9 @@ sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
 
 
 
-
-
-
 catchenviron <- left_join(allcatch, watersalin %>% select(-c(Year, Month)), 
                           by = c("EndDate" = "Date", "Station" = "Station")) %>%
   left_join(watertemps %>% select(-c(Year, Month)), 
             by = c("EndDate" = "Date", "Station" = "Station"))
-
-
-
 
 
