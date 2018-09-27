@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 source('Fish692-PrudhoeFish_dataimport.R')
 ```
 
+
 ## Intro
 This document summarizes some of the exploratory data analysis of the Prudhoe Bay nearshore
 fisheries data by Justin Priest for Franz Mueter's Data Wrangling Seminar, Fish 692  

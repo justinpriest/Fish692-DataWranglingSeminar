@@ -4,6 +4,7 @@
 library(dplyr)
 library(tidyr)
 library(vegan)
+library(CircStats)
 
 source('Fish692-PrudhoeFish_dataimport.R')
 
@@ -12,30 +13,57 @@ catchmatrix <- catchenviron %>% group_by(Year, Station, Species) %>% summarise(a
   spread(Species, value = anncount) %>% replace(., is.na(.), 0) %>% ungroup()
 catchmatrix$Station[catchmatrix$Station == 231] <- 214 # Treat the 231 Station as the precursor to 214
 
+catchmatrix <- catchmatrix %>% arrange(Year, Station) #was out of order in 2001 after station name change
 
 
+# Exclude rare species:
+# catchmatrix$Station <- as.numeric(catchmatrix$Station) #cheat to include it in shortcut
+# catchmatrix <- catchmatrix[, which(colSums(catchmatrix) > 100)] 
 
-catchmatrix$Station <- as.numeric(catchmatrix$Station) #cheat to include it in shortcut 
-catchmatrix <- catchmatrix[, which(colSums(catchmatrix) > 100)] # set this to zero to include all
-# right now analysis is for only species >100 fish, all years combined
+# Right now analysis is for only species >100 fish, all years combined. Change 100 to 0 to inc all spp
+# the following code makes a list of the species to keep which have a threshold of 100 currently,
+# then filters based on this list, then turns back into wide format
+keepspp <- (catchmatrix %>% gather(Species, counts, -Year, -Station) %>%
+  group_by(Species) %>% summarize(counts = sum(counts)) %>% filter(counts > 100))$Species
+catchmatrix <- catchmatrix %>% gather(Species, counts, -Year, -Station) %>% filter(Species %in% keepspp) %>%
+  spread(Species, value = counts)
 
+rownames(catchmatrix) <- paste0(catchmatrix$Year, catchmatrix$Station)
 
+pru.env.ann <- catchmatrix %>% select(c(Year, Station))
+catchmatrix <- catchmatrix %>% select(-c(Year, Station))
 
 # standardize catches 0 to 1 (1 is max catch in a given year/station)
 catchmatrix.std <- catchmatrix 
-for (i in 3:ncol(catchmatrix.std)){
+for (i in 3:ncol(catchmatrix.std)){ #starts at 3 to exclude Year and station cols
   catchmatrix.std[i] <- catchmatrix[i]/max(catchmatrix[i])}
+
+
+#now set up environ dataframe to correspond to catch dataframe
+pru.env.ann <- pru.env.ann %>% left_join()
+
+annwind <- deadhorsewind %>% mutate(Year = year(Date)) %>% group_by(Year) %>% 
+  summarise(annmeanspeed_kph = mean(dailymeanspeed_kph, na.rm = TRUE),
+  annmeandir = ((circ.mean(2*pi*na.omit(dailymeandir)/360))*(360 / (2*pi))) %%360 )
+
+
+
+head(deadhorsewind)
 
 
 
 ### PERMANOVA ###
 # create two grouping factors: one to cover 4 sites for 9 years, and again for a second time period
-earlylateyrs <- gl(2,36) # Creates two groups of 36. 72 is b/c 4 sites for 18 years. 
-stationdiffs <- gl(4,1,72)
-stationdiffs[3] <- 4  #fix the ordering issue in 2001 b/c we had 231 this year
-stationdiffs[4] <- 3
+earlylateyrs <- gl(2,36) # Creates two groups of 36. 72 is b/c 4 sites for 18 years. 2001-09 vs 2010-18
+stationdiffs <- gl(4,1,72) # levels are the stations
 allyrs <- gl(18,4,72)
 
-adonis2(catchmatrix.std %>% select(-c(Year, Station)) ~ stationdiffs + allyrs, perm = 9999)
+adonis(catchmatrix.std %>% select(-c(Year, Station)) ~ stationdiffs + allyrs, perm = 9999)
+adonis(catchmatrix.std %>% select(-c(Year, Station)) ~ catchmatrix.std$Year, perm = 9999)
 
 
+### BRAY-CURTIS DISTANCE
+braydist <- vegdist(catchmatrix.std %>% select(-c(Year, Station)), method="bray")
+# library(gplots)
+# heatmap.2(as.matrix(braydist))
+adonis(braydist ~ Year + Station, data = catchmatrix.std, perm = 9999)

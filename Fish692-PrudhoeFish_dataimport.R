@@ -38,22 +38,17 @@ rm(temp_salin) #optional but cleans up environment
 # https://www1.ncdc.noaa.gov/pub/data/cdo/documentation/LCD_documentation.pdf
 # Station WBAN:27406
 # These data were downloaded in 10 year increments (LCD CSV). 
-# Then in Excel, I removed the hourly rows/columns and left just the daily summary
+# In appendix (at end of this doc, I summarized hourly data into a daily summary)
 
 
 deadhorsewind <- read.csv("deadhorsewind_2001-2018_daily.csv", header = TRUE, 
-                          stringsAsFactors = FALSE) %>%
-  select(DATE, DAILYAverageWindSpeed, DAILYPeakWindSpeed, PeakWindDirection, 
-         DAILYSustainedWindSpeed, DAILYSustainedWindDirection) %>% #remove extraneous data
-  rename(Date = DATE,
-         meanwindmph = DAILYAverageWindSpeed,
-         peakwindmph = DAILYPeakWindSpeed,
-         peakwinddir = PeakWindDirection,
-         sustwindmph = DAILYSustainedWindSpeed,
-         sustwinddir = DAILYSustainedWindDirection) %>% 
+                          stringsAsFactors = FALSE) %>% 
   mutate(Date = ymd(as.POSIXct(Date, format = "%m/%d/%Y")),
-         month = month(Date)) %>%
-  mutate_if(is.character, as.numeric) %>% select(Date, month, everything()) # reorder month column
+         month = month(Date),
+         dailymeanspeed = dailymeanspeed * 1.60934) %>%
+  rename(dailymeanspeed_kph = dailymeanspeed) %>%
+  filter(month == 7 | month == 8) %>%
+  select(Date, month, everything()) # reorder month column
 
 
 
@@ -77,3 +72,22 @@ catchenviron <- left_join(allcatch, watersalin %>% select(-c(Year, Month)),
             by = c("EndDate" = "Date", "Station" = "Station"))
 
 
+##########################################
+#APPENDIX
+# The daily wind data was created using the following code:
+# windhourly <- read.csv("../../Slope Project/Data/deadhorsewind_2001-2018_hourly.csv", header = TRUE, 
+#          stringsAsFactors = FALSE) %>%
+#   select(DATE, HOURLYWindSpeed, HOURLYWindDirection) %>% #remove extraneous data
+#   rename(Date = DATE,
+#          windhrly_mph = HOURLYWindSpeed,
+#          windhrly_dir = HOURLYWindDirection) %>% 
+#   mutate(Date = ymd(as.POSIXct(Date, format = "%m/%d/%Y")),
+#          month = month(Date)) %>%
+#   mutate_if(is.character, as.numeric) %>% select(Date, month, everything())
+# 
+# library(CircStats)
+# winddaily <- windhourly %>% mutate(Year = year(Date)) %>% group_by(Date) %>% 
+#   summarise(dailymeanspeed = mean(windhrly_mph, na.rm = TRUE),
+#             dailymeandir = ((circ.mean(2*pi*na.omit(windhrly_dir)/360))*(360 / (2*pi))) %%360 )
+# 
+# write.csv(winddaily, file="deadhorsewind_2001-2018.csv")
