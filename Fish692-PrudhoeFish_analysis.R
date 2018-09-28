@@ -30,25 +30,29 @@ catchmatrix <- catchmatrix %>% gather(Species, counts, -Year, -Station) %>% filt
 
 rownames(catchmatrix) <- paste0(catchmatrix$Year, catchmatrix$Station)
 
-pru.env.ann <- catchmatrix %>% select(c(Year, Station))
-catchmatrix <- catchmatrix %>% select(-c(Year, Station))
+pru.env.ann <- catchmatrix %>% dplyr::select(Year, Station)
+catchmatrix <- catchmatrix %>% dplyr::select(-Year, -Station)
 
 # standardize catches 0 to 1 (1 is max catch in a given year/station)
+#note that the order corresponds to the now deleted Year/station combo. DON'T CHANGE ORDER
 catchmatrix.std <- catchmatrix 
 for (i in 3:ncol(catchmatrix.std)){ #starts at 3 to exclude Year and station cols
   catchmatrix.std[i] <- catchmatrix[i]/max(catchmatrix[i])}
 
 
 #now set up environ dataframe to correspond to catch dataframe
-pru.env.ann <- pru.env.ann %>% left_join()
-
-annwind <- deadhorsewind %>% mutate(Year = year(Date)) %>% group_by(Year) %>% 
-  summarise(annmeanspeed_kph = mean(dailymeanspeed_kph, na.rm = TRUE),
-  annmeandir = ((circ.mean(2*pi*na.omit(dailymeandir)/360))*(360 / (2*pi))) %%360 )
-
-
-
-head(deadhorsewind)
+pru.env.ann <- pru.env.ann %>% 
+  left_join(deadhorsewind %>% mutate(Year = year(Date)) %>% group_by(Year) %>% 
+              summarise(annwindspeed_kph = mean(dailymeanspeed_kph, na.rm = TRUE),
+                        annwinddir = ((circ.mean(2*pi*na.omit(dailymeandir)/360))*(360 / (2*pi))) %%360 ),
+                          by = c("Year" = "Year")) %>% 
+  left_join(sagdisch %>% mutate(Year = year(Date), month = month(Date)) %>% 
+              group_by(Year) %>% filter(month == 7 | month == 8) %>%
+              summarise(anndisch_cfs = mean(meandisch_cfs, na.rm = TRUE)),by = c("Year" = "Year") ) %>% 
+  left_join(watersalin %>% group_by(Year, Station) %>% summarise(annsal_ppt = mean(Salin_Mid, na.rm = TRUE)), 
+            by = c("Year" = "Year", "Station" = "Station")) %>%
+  left_join(watertemps %>% group_by(Year, Station) %>% summarise(anntemp_c = mean(Temp_Mid, na.rm = TRUE)), 
+            by = c("Year" = "Year", "Station" = "Station"))
 
 
 
@@ -57,6 +61,19 @@ head(deadhorsewind)
 earlylateyrs <- gl(2,36) # Creates two groups of 36. 72 is b/c 4 sites for 18 years. 2001-09 vs 2010-18
 stationdiffs <- gl(4,1,72) # levels are the stations
 allyrs <- gl(18,4,72)
+
+
+betad <- betadiver(catchmatrix.std, "z")
+adonis(betad ~ Station, pru.env.ann, perm=200)
+str(betad)
+str(catchmatrix.std)
+str(pru.env.ann)
+
+betadun <- betadiver(dune, "z")
+adonis(betadun ~ Management, dune.env, perm=200)
+str(betadun)
+str(dune.env)
+str(dune)
 
 adonis(catchmatrix.std %>% select(-c(Year, Station)) ~ stationdiffs + allyrs, perm = 9999)
 adonis(catchmatrix.std %>% select(-c(Year, Station)) ~ catchmatrix.std$Year, perm = 9999)

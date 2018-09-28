@@ -24,8 +24,8 @@ temp_salin <- temp_salin %>% add_column(Month = month(temp_salin$Date), .after =
 # Separate out the temp and salinity. Drop the columns that are irrelevant
 # Put data into 'long' format. NOTE: They used a slightly different definition 
 # of the bottom in early years ('bottom 1.5'). This is analogous to 'bottom'
-watertemps <- temp_salin %>% select(-c(Salin_Top, Salin_Mid, Salin_Bot, Salin_Bot_1.5)) 
-watersalin <- temp_salin %>% select(-c(Temp_Top, Temp_Mid, Temp_Bot, Temp_Bot_1.5)) 
+watertemps <- temp_salin %>% dplyr::select(-c(Salin_Top, Salin_Mid, Salin_Bot, Salin_Bot_1.5)) 
+watersalin <- temp_salin %>% dplyr::select(-c(Temp_Top, Temp_Mid, Temp_Bot, Temp_Bot_1.5)) 
   
 # if needed for later: watersalin %>% gather(depth, salin_ppt, -c(Year, Date, Month, Station))
 
@@ -48,7 +48,7 @@ deadhorsewind <- read.csv("deadhorsewind_2001-2018_daily.csv", header = TRUE,
          dailymeanspeed = dailymeanspeed * 1.60934) %>%
   rename(dailymeanspeed_kph = dailymeanspeed) %>%
   filter(month == 7 | month == 8) %>%
-  select(Date, month, everything()) # reorder month column
+  dplyr::select(Date, month, everything()) # reorder month column
 
 
 
@@ -60,15 +60,15 @@ sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
   mutate(datetime = as.POSIXct(paste0(date, " ", time), format = "%m/%d/%Y %H:%M"),
          Date = as_date(datetime),
          hour = hour(datetime) ) %>%
-  select(Date, hour, disch_cfs) %>%
+  dplyr::select(Date, hour, disch_cfs) %>%
   group_by(Date) %>% summarize(meandisch_cfs = mean(disch_cfs, na.rm = TRUE))
 
 
 
 
-catchenviron <- left_join(allcatch, watersalin %>% select(-c(Year, Month)), 
+catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)), 
                           by = c("EndDate" = "Date", "Station" = "Station")) %>%
-  left_join(watertemps %>% select(-c(Year, Month)), 
+  left_join(watertemps %>% dplyr::select(-c(Year, Month)), 
             by = c("EndDate" = "Date", "Station" = "Station"))
 
 
