@@ -1,5 +1,7 @@
+# !diagnostics off
 #Data Wrangling and Analysis
 #Script to run models and analysis
+# !diagnostics off
 
 library(dplyr)
 library(tidyr)
@@ -56,31 +58,42 @@ pru.env.ann <- pru.env.ann %>%
 
 
 
+#################
 ### PERMANOVA ###
-# create two grouping factors: one to cover 4 sites for 9 years, and again for a second time period
-earlylateyrs <- gl(2,36) # Creates two groups of 36. 72 is b/c 4 sites for 18 years. 2001-09 vs 2010-18
-stationdiffs <- gl(4,1,72) # levels are the stations
-allyrs <- gl(18,4,72)
+#################
 
-
-betad <- betadiver(catchmatrix.std, "z")
-adonis(betad ~ Station, pru.env.ann, perm=200)
-str(betad)
-str(catchmatrix.std)
-str(pru.env.ann)
-
+# example from vegan tutorial, page 33
+# http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf
+data(dune)
+data(dune.env)
 betadun <- betadiver(dune, "z")
 adonis(betadun ~ Management, dune.env, perm=200)
 str(betadun)
 str(dune.env)
 str(dune)
 
-adonis(catchmatrix.std %>% select(-c(Year, Station)) ~ stationdiffs + allyrs, perm = 9999)
-adonis(catchmatrix.std %>% select(-c(Year, Station)) ~ catchmatrix.std$Year, perm = 9999)
+#now on my own. only works with a factor (station so far)
+betad <- betadiver(catchmatrix.std, "z")
+str(betad)
+adonis(betad ~ anntemp_c*Station, pru.env.ann, perm=200) #won't run
+str(catchmatrix.std)
+str(pru.env.ann)
+
+adonis(catchmatrix.std ~ anntemp_c , data=pru.env.ann, perm=200)
+
+
+
+# create two grouping factors: one to cover 4 sites for 9 years, and again for a second time period
+earlylateyrs <- gl(2,36) # Creates two groups of 36. 72 is b/c 4 sites for 18 years. 2001-09 vs 2010-18
+stationdiffs <- gl(4,1,72) # levels are the stations
+allyrs <- gl(18,4,72)
+
+adonis(catchmatrix.std) ~ stationdiffs + allyrs, perm = 9999)
+
 
 
 ### BRAY-CURTIS DISTANCE
-braydist <- vegdist(catchmatrix.std %>% select(-c(Year, Station)), method="bray")
+braydist <- vegdist(catchmatrix.std, method="bray")
 # library(gplots)
 # heatmap.2(as.matrix(braydist))
-adonis(braydist ~ Year + Station, data = catchmatrix.std, perm = 9999)
+adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
