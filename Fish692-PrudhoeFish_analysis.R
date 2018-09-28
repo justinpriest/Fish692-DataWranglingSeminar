@@ -1,7 +1,7 @@
 # !diagnostics off
 #Data Wrangling and Analysis
 #Script to run models and analysis
-# !diagnostics off
+
 
 library(dplyr)
 library(tidyr)
@@ -14,6 +14,8 @@ source('Fish692-PrudhoeFish_dataimport.R')
 catchmatrix <- catchenviron %>% group_by(Year, Station, Species) %>% summarise(anncount = sum(totcount)) %>%
   spread(Species, value = anncount) %>% replace(., is.na(.), 0) %>% ungroup()
 catchmatrix$Station[catchmatrix$Station == 231] <- 214 # Treat the 231 Station as the precursor to 214
+watersalin$Station[watersalin$Station == 231] <- 214   # Do the same for salin & temps
+watertemps$Station[watertemps$Station == 231] <- 214
 
 catchmatrix <- catchmatrix %>% arrange(Year, Station) #was out of order in 2001 after station name change
 
@@ -43,7 +45,7 @@ for (i in 3:ncol(catchmatrix.std)){ #starts at 3 to exclude Year and station col
 
 
 #now set up environ dataframe to correspond to catch dataframe
-pru.env.ann <- pru.env.ann %>% 
+pru.env.ann <- pru.env.ann %>%
   left_join(deadhorsewind %>% mutate(Year = year(Date)) %>% group_by(Year) %>% 
               summarise(annwindspeed_kph = mean(dailymeanspeed_kph, na.rm = TRUE),
                         annwinddir = ((circ.mean(2*pi*na.omit(dailymeandir)/360))*(360 / (2*pi))) %%360 ),
@@ -54,7 +56,10 @@ pru.env.ann <- pru.env.ann %>%
   left_join(watersalin %>% group_by(Year, Station) %>% summarise(annsal_ppt = mean(Salin_Mid, na.rm = TRUE)), 
             by = c("Year" = "Year", "Station" = "Station")) %>%
   left_join(watertemps %>% group_by(Year, Station) %>% summarise(anntemp_c = mean(Temp_Mid, na.rm = TRUE)), 
-            by = c("Year" = "Year", "Station" = "Station"))
+            by = c("Year" = "Year", "Station" = "Station")) %>%
+  mutate(Year =  factor(Year, ordered = TRUE), # PERMANOVA will want it  orderedS
+         annwinddir_ew = sin(annwinddir * pi / 180)) # this changes from polar coords to cartesian east-west (-1=W, 1=E)
+
 
 
 
@@ -64,22 +69,12 @@ pru.env.ann <- pru.env.ann %>%
 
 # example from vegan tutorial, page 33
 # http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf
-data(dune)
-data(dune.env)
-betadun <- betadiver(dune, "z")
-adonis(betadun ~ Management, dune.env, perm=200)
-str(betadun)
-str(dune.env)
-str(dune)
 
-#now on my own. only works with a factor (station so far)
 betad <- betadiver(catchmatrix.std, "z")
-str(betad)
-adonis(betad ~ anntemp_c*Station, pru.env.ann, perm=200) #won't run
-str(catchmatrix.std)
-str(pru.env.ann)
+adonis(betad ~ annwinddir_ew + annsal_ppt + anntemp_c + anndisch_cfs + Station + Year, pru.env.ann, perm=999) 
+#note that terms are sequential so order matters!
 
-adonis(catchmatrix.std ~ anntemp_c , data=pru.env.ann, perm=200)
+adonis(catchmatrix.std ~ annwinddir_ew , data=pru.env.ann, perm=200)
 
 
 
@@ -88,7 +83,7 @@ earlylateyrs <- gl(2,36) # Creates two groups of 36. 72 is b/c 4 sites for 18 ye
 stationdiffs <- gl(4,1,72) # levels are the stations
 allyrs <- gl(18,4,72)
 
-adonis(catchmatrix.std) ~ stationdiffs + allyrs, perm = 9999)
+adonis(catchmatrix.std ~ stationdiffs + allyrs, perm = 9999)
 
 
 
