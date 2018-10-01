@@ -16,6 +16,27 @@ This document summarizes some of the exploratory data analysis of the Prudhoe Ba
 fisheries data by Justin Priest for Franz Mueter's Data Wrangling Seminar, Fish 692  
 <https://github.com/justinpriest/Fish692-DataWranglingSeminar>
 
+## Site Locations
+```{r locations, echo=FALSE, warning=FALSE, message=FALSE}
+library(leaflet)
+
+pru_loc <- data.frame(Station = as.character(c(214, 218, 220, 230)),
+           Name = c("Niakuk", "West Beach", "West Dock", "Endicott"),
+           Lat  = c(70.347, 70.358, 70.3826, 70.309),
+           Long = c(-148.210, -148.473, -148.558, -147.884) )
+
+places <-  data.frame(Place = c("Prudhoe Bay", "Sag River Delta"),
+           Lat = c(70.345, 70.31),
+           Long = c(-148.38, -148.1))
+
+leaflet(pru_loc) %>% addTiles() %>% setView(-148.2, 70.35, zoom = 10) %>%
+  addMarkers(popup = ~paste0(Station, " - ", Name)) %>%
+  addLabelOnlyMarkers(data = places, label = ~Place,
+    labelOptions = labelOptions(noHide = T, textOnly = TRUE, 
+                                textsize = "16px", direction = "bottom"))
+
+
+```
 
 ## Catch Histograms for select species (Response Variables)
 
@@ -115,7 +136,7 @@ Note that temperature has significantly increased at all sites!
 
 ```{r explanplots3, echo=FALSE, warning=FALSE, message=FALSE}
 #Wind 
-ggplot(deadhorsewind %>% filter(month==7 | month==8), aes(x=sustwinddir)) + 
+ggplot(deadhorsewind %>% filter(month==7 | month==8), aes(x=dailymeandir)) + 
   geom_histogram(col="black", bins = 40) + coord_polar() + 
   ggtitle("polar histogram plot of wind directions") + xlab("sustained wind direction")
 
