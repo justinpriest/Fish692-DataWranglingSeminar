@@ -6,6 +6,7 @@ library(tidyr)
 library(tibble)
 library(lubridate)
 library(ggplot2)
+library(CircStats)
 
 #read in the data
 allcatch <- read.csv("allcatch2001-2018.csv", header = TRUE) %>%
@@ -26,6 +27,9 @@ temp_salin <- temp_salin %>% add_column(Month = month(temp_salin$Date), .after =
 # of the bottom in early years ('bottom 1.5'). This is analogous to 'bottom'
 watertemps <- temp_salin %>% dplyr::select(-c(Salin_Top, Salin_Mid, Salin_Bot, Salin_Bot_1.5)) 
 watersalin <- temp_salin %>% dplyr::select(-c(Temp_Top, Temp_Mid, Temp_Bot, Temp_Bot_1.5)) 
+watersalin$Station[watersalin$Station == 231] <- 214   # Treat 231 as the precursor to 214
+watertemps$Station[watertemps$Station == 231] <- 214   # Treat 231 as the precursor to 214
+
   
 # if needed for later: watersalin %>% gather(depth, salin_ppt, -c(Year, Date, Month, Station))
 
@@ -65,11 +69,51 @@ sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
 
 
 
-
+# join the catch and environ data. not used yet but will be useful later on
 catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)), 
                           by = c("EndDate" = "Date", "Station" = "Station")) %>%
   left_join(watertemps %>% dplyr::select(-c(Year, Month)), 
-            by = c("EndDate" = "Date", "Station" = "Station"))
+            by = c("EndDate" = "Date", "Station" = "Station")) %>% 
+  left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
+  left_join(sagdisch, by = c("EndDate" = "Date"))
+
+
+
+# This creates a dataframe summarizing annual environmental conditions at each site for each year
+# and keep in same order as the corresponding catch dataframe. 
+# the only tricky thing done is that I converted wind from degrees (0-360) to East-West using trig,
+# before this I took the mean using circular averaging. Salin & temp are from midwater sampling
+pru.env.ann <- catchenviron %>% dplyr::distinct(Year, Station) %>% 
+  mutate(Station=replace(Station, Station==231, 214)) %>% arrange(Year, Station) %>%
+  #the above section creates a dataframe of year/station combos, and replaces 231 with 214
+  left_join(deadhorsewind %>% mutate(Year = year(Date)) %>% group_by(Year) %>% 
+              summarise(annwindspeed_kph = mean(dailymeanspeed_kph, na.rm = TRUE),
+                        annwinddir = ((circ.mean(2*pi*na.omit(dailymeandir)/360))*(360 / (2*pi))) %%360 ),
+            by = c("Year" = "Year")) %>% 
+  left_join(sagdisch %>% mutate(Year = year(Date), month = month(Date)) %>% 
+              group_by(Year) %>% filter(month == 7 | month == 8) %>%
+              summarise(anndisch_cfs = mean(meandisch_cfs, na.rm = TRUE)),by = c("Year" = "Year") ) %>% 
+  left_join(watersalin %>% group_by(Year, Station) %>% summarise(annsal_ppt = mean(Salin_Mid, na.rm = TRUE)), 
+            by = c("Year" = "Year", "Station" = "Station")) %>%
+  left_join(watertemps %>% group_by(Year, Station) %>% summarise(anntemp_c = mean(Temp_Mid, na.rm = TRUE)), 
+            by = c("Year" = "Year", "Station" = "Station")) %>%
+  mutate(Year =  factor(Year, ordered = TRUE), # PERMANOVA will want it  ordered
+         annwinddir_ew = sin(annwinddir * pi / 180)) # this changes from polar coords to cartesian east-west (-1=W, 1=E)
+
+
+
+str(catchenviron %>% dplyr::distinct(EndDate, Station) %>% 
+  mutate(Station=replace(Station, Station==231, 214)) %>% arrange(EndDate, Station) %>% 
+  left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
+  left_join(sagdisch, by = c("EndDate" = "Date")) %>%
+  left_join(watersalin %>% dplyr::select(Date, Station, Salin_Top, Salin_Mid), 
+            by = c("EndDate" = "Date", "Station" = "Station")) %>%
+  left_join(watertemps %>% dplyr::select(Date, Station, Temp_Top, Temp_Mid), 
+            by = c("EndDate" = "Date", "Station" = "Station")) %>%
+  mutate(EndDate =  factor(EndDate, ordered = TRUE), # PERMANOVA will want it  ordered
+         winddir_ew = sin(dailymeandir * pi / 180)) # changes from degrees to cartesian east-west (-1=W, 1=E)
+)
+
 
 
 ##########################################

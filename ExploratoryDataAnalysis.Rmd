@@ -1,5 +1,5 @@
 ---
-title: "ExploratoryDataAnalysis"
+title: "Exploratory Data Analysis"
 author: "Justin Priest"
 date: "September 25, 2018"
 output: html_document
@@ -34,7 +34,6 @@ leaflet(pru_loc) %>% addTiles() %>% setView(-148.2, 70.35, zoom = 10) %>%
   addLabelOnlyMarkers(data = places, label = ~Place,
     labelOptions = labelOptions(noHide = T, textOnly = TRUE, 
                                 textsize = "16px", direction = "bottom"))
-
 
 ```
 
