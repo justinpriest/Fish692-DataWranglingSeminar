@@ -36,16 +36,6 @@ watertemps$Station <- factor(watertemps$Station)
 
 rm(temp_salin) #optional but cleans up environment
 
-##### Catch #####
-# First join the catch and environ data. not used yet but will be useful later on
-catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)), 
-                          by = c("EndDate" = "Date", "Station" = "Station")) %>%
-  left_join(watertemps %>% dplyr::select(-c(Year, Month)), 
-            by = c("EndDate" = "Date", "Station" = "Station")) %>% 
-  left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
-  left_join(sagdisch, by = c("EndDate" = "Date"))
-
-
 
 ##### WIND #####
 # wind and air temp data from NOAA NCEI
@@ -76,6 +66,17 @@ sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
          hour = hour(datetime) ) %>%
   dplyr::select(Date, hour, disch_cfs) %>%
   group_by(Date) %>% summarize(meandisch_cfs = mean(disch_cfs, na.rm = TRUE))
+
+
+
+##### Catch #####
+# Join the catch and environ data. not used yet but will be useful later on
+catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)), 
+                          by = c("EndDate" = "Date", "Station" = "Station")) %>%
+  left_join(watertemps %>% dplyr::select(-c(Year, Month)), 
+            by = c("EndDate" = "Date", "Station" = "Station")) %>% 
+  left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
+  left_join(sagdisch, by = c("EndDate" = "Date"))
 
 
 

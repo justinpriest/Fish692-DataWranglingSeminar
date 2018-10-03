@@ -24,6 +24,34 @@ head(catchmatrix.day.std)
 ### OBJECTIVE 1: Test for changes in community assemblage structure
 #################
 
+################################
+## ORDINATION & DISSIMILARITY ##
+
+
+
+### BRAY-CURTIS DISTANCE
+braydist <- vegdist(catchmatrix.std, method="bray") # This is a dissimilarity matrix
+
+# library(gplots)
+# heatmap.2(as.matrix(braydist))
+
+totalNMDS <- metaMDS(braydist, k=3)
+
+#Plot, put years by color, add environ vectors
+plot(totalNMDS, display = "sites", type = "n", main = "Annual Results - colored by year grp")
+text(totalNMDS, select=which(pru.env.ann$Year<2010), col="red")
+text(totalNMDS, select=which(pru.env.ann$Year>2009), col="blue")
+#unclear if any patterns
+
+plot(totalNMDS, display = "sites", type = "n", main = "Annual Results - colored by station")
+text(totalNMDS, select=which(pru.env.ann$Station==214), col="red")
+text(totalNMDS, select=which(pru.env.ann$Station==218), col="blue")
+text(totalNMDS, select=which(pru.env.ann$Station==220), col="black")
+text(totalNMDS, select=which(pru.env.ann$Station==230), col="green")
+#pretty distinct groupings by site
+
+
+
 
 ###############
 ## PERMANOVA ##
@@ -32,6 +60,8 @@ head(catchmatrix.day.std)
 # http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf
 
 betad <- betadiver(catchmatrix.std, "z")   # using Arrhenius z measure of beta diversity 
+boxplot(betadisper(betad, pru.env.ann$Year ))
+
 adonis(betad ~ Year, pru.env.ann, perm=999) 
 adonis(betad ~ Station, pru.env.ann, perm=999) 
 adonis(betad ~ anntemp_c, pru.env.ann, perm=999) 
@@ -51,13 +81,7 @@ adonis(catchmatrix.std ~ annsal_ppt + annwinddir_ew + annwindspeed_kph +
          anndisch_cfs + anntemp_c, data=pru.env.ann, perm=999)
 
 
-###############
-### BRAY-CURTIS DISTANCE
-braydist <- vegdist(catchmatrix.std, method="bray")
-boxplot(betadisper(betad, pru.env.ann$Year ))
 
-# library(gplots)
-# heatmap.2(as.matrix(braydist))
 adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
 
 
