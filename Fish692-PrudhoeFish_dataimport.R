@@ -13,7 +13,7 @@ allcatch <- read.csv("allcatch2001-2018.csv", header = TRUE) %>%
   mutate(Station = factor(Station, levels = c("220", "218", "214", "230", "231")))
 temp_salin <- read.csv("tempsalin2001-2018.csv", header = TRUE) %>%
   mutate(Station = factor(Station, levels = c("220", "218", "214", "230", "231")))
-str(allcatch)
+
 #fix dates
 allcatch$EndDate <- ymd(as.POSIXct(allcatch$EndDate, format = "%m/%d/%Y"))
 temp_salin$Date <- ymd(as.POSIXct(temp_salin$Date, format = "%m/%d/%Y"))
@@ -29,11 +29,22 @@ watertemps <- temp_salin %>% dplyr::select(-c(Salin_Top, Salin_Mid, Salin_Bot, S
 watersalin <- temp_salin %>% dplyr::select(-c(Temp_Top, Temp_Mid, Temp_Bot, Temp_Bot_1.5)) 
 watersalin$Station[watersalin$Station == 231] <- 214   # Treat 231 as the precursor to 214
 watertemps$Station[watertemps$Station == 231] <- 214   # Treat 231 as the precursor to 214
-
+watersalin$Station <- factor(watersalin$Station)
+watertemps$Station <- factor(watertemps$Station)
   
 # if needed for later: watersalin %>% gather(depth, salin_ppt, -c(Year, Date, Month, Station))
 
 rm(temp_salin) #optional but cleans up environment
+
+##### Catch #####
+# First join the catch and environ data. not used yet but will be useful later on
+catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)), 
+                          by = c("EndDate" = "Date", "Station" = "Station")) %>%
+  left_join(watertemps %>% dplyr::select(-c(Year, Month)), 
+            by = c("EndDate" = "Date", "Station" = "Station")) %>% 
+  left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
+  left_join(sagdisch, by = c("EndDate" = "Date"))
+
 
 
 ##### WIND #####
@@ -56,7 +67,6 @@ deadhorsewind <- read.csv("deadhorsewind_2001-2018_daily.csv", header = TRUE,
 
 
 
-
 ##### DISCHARGE #####
 # Data from USGS https://waterdata.usgs.gov/nwis/uv/?site_no=15908000
 # https://nwis.waterdata.usgs.gov/usa/nwis/uv/?cb_00060=on&format=rdb&site_no=15908000&period=&begin_date=2001-01-01&end_date=2018-09-01
@@ -69,15 +79,9 @@ sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
 
 
 
-# join the catch and environ data. not used yet but will be useful later on
-catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)), 
-                          by = c("EndDate" = "Date", "Station" = "Station")) %>%
-  left_join(watertemps %>% dplyr::select(-c(Year, Month)), 
-            by = c("EndDate" = "Date", "Station" = "Station")) %>% 
-  left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
-  left_join(sagdisch, by = c("EndDate" = "Date"))
 
-
+###################################
+# Join All Environmental Data
 
 # This creates a dataframe summarizing annual environmental conditions at each site for each year
 # and keep in same order as the corresponding catch dataframe. 
@@ -97,12 +101,12 @@ pru.env.ann <- catchenviron %>% dplyr::distinct(Year, Station) %>%
             by = c("Year" = "Year", "Station" = "Station")) %>%
   left_join(watertemps %>% group_by(Year, Station) %>% summarise(anntemp_c = mean(Temp_Mid, na.rm = TRUE)), 
             by = c("Year" = "Year", "Station" = "Station")) %>%
-  mutate(Year =  factor(Year, ordered = TRUE), # PERMANOVA will want it  ordered
+  mutate(Year =  factor(Year, ordered = TRUE), # PERMANOVA will want it ordered
          annwinddir_ew = sin(annwinddir * pi / 180)) # this changes from polar coords to cartesian east-west (-1=W, 1=E)
 
 
-
-str(catchenviron %>% dplyr::distinct(EndDate, Station) %>% 
+#create similar setup on a daily scale
+pru.env.day <- catchenviron %>% dplyr::distinct(EndDate, Station) %>% 
   mutate(Station=replace(Station, Station==231, 214)) %>% arrange(EndDate, Station) %>% 
   left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
   left_join(sagdisch, by = c("EndDate" = "Date")) %>%
@@ -110,9 +114,67 @@ str(catchenviron %>% dplyr::distinct(EndDate, Station) %>%
             by = c("EndDate" = "Date", "Station" = "Station")) %>%
   left_join(watertemps %>% dplyr::select(Date, Station, Temp_Top, Temp_Mid), 
             by = c("EndDate" = "Date", "Station" = "Station")) %>%
-  mutate(EndDate =  factor(EndDate, ordered = TRUE), # PERMANOVA will want it  ordered
-         winddir_ew = sin(dailymeandir * pi / 180)) # changes from degrees to cartesian east-west (-1=W, 1=E)
-)
+  mutate(#EndDate =  factor(EndDate, ordered = TRUE), # PERMANOVA will want it ordered
+         Year = year(EndDate),
+         Station = factor(Station), 
+         winddir_ew = sin(dailymeandir * pi / 180)) %>% # changes from degrees to cartesian east-west (-1=W, 1=E)
+  arrange(EndDate, Station)
+
+
+
+
+#############################
+### Catch Data
+
+# now turn catch data into a 'wide' catch matrix (Species by Year/Station)
+# drop enivron data too, just focusing on catch here
+catchmatrix.all <- catchenviron %>% group_by(Year, Station, Species) %>% summarise(anncount = sum(totcount)) %>%
+  spread(Species, value = anncount) %>% replace(., is.na(.), 0) %>% ungroup()
+catchmatrix.all$Station[catchmatrix.all$Station == 231] <- 214 # Treat the 231 Station as the precursor to 214
+catchmatrix.all <- catchmatrix.all %>% arrange(Year, Station) #was out of order in 2001 after station name change
+
+catchmatrix.day <- catchenviron %>% group_by(EndDate, Station, Species) %>% summarise(count = sum(totcount)) %>%
+  spread(Species, value = count) %>% replace(., is.na(.), 0) %>% ungroup()
+catchmatrix.day$Station[catchmatrix.day$Station == 231] <- 214 # Treat the 231 Station as the precursor to 214
+catchmatrix.day <- catchmatrix.day %>% arrange(EndDate, Station) #was out of order in 2001 after station name change
+
+
+# Exclude rare species:
+# catchmatrix$Station <- as.numeric(catchmatrix$Station) #cheat to include it in shortcut
+# catchmatrix <- catchmatrix[, which(colSums(catchmatrix) > 100)] 
+
+# Right now analysis is for only species >100 fish, all years combined. Change 100 to 0 to inc all spp
+# the following code makes a list of the species to keep which have a threshold of 100 currently,
+# then filters based on this list, then turns back into wide format
+keepspp <- (catchmatrix.all %>% gather(Species, counts, -Year, -Station) %>%
+              group_by(Species) %>% summarize(counts = sum(counts)) %>% filter(counts > 100))$Species
+catchmatrix <- catchmatrix.all %>% gather(Species, counts, -Year, -Station) %>% filter(Species %in% keepspp) %>%
+  spread(Species, value = counts)
+catchmatrix.day <- catchmatrix.day %>% gather(Species, counts, -EndDate, -Station) %>% filter(Species %in% keepspp) %>%
+  spread(Species, value = counts)
+
+rownames(catchmatrix) <- paste0(catchmatrix$Year, catchmatrix$Station)
+rownames(catchmatrix.day) <- paste0(year(catchmatrix.day$EndDate), yday(catchmatrix.day$EndDate), catchmatrix.day$Station)
+
+
+#pru.env.ann <- catchmatrix %>% dplyr::select(Year, Station)
+catchmatrix <- catchmatrix %>% dplyr::select(-Year, -Station)
+catchmatrix.all <- catchmatrix.all %>% dplyr::select(-Year, -Station)
+catchmatrix.day <- catchmatrix.day %>% dplyr::select(-EndDate, -Station)
+
+# standardize catches 0 to 1 (1 is max catch in a given year/station)
+#note that the order corresponds to the now deleted Year/station combo. DON'T CHANGE ORDER
+catchmatrix.std <- catchmatrix 
+for (i in 1:ncol(catchmatrix.std)){ #make sure year/stn cols already dropped
+  catchmatrix.std[i] <- catchmatrix[i]/max(catchmatrix[i])}
+
+catchmatrix.day.std <- catchmatrix.day
+for (i in 1:ncol(catchmatrix.day.std)){ #starts at 3 to exclude Year and station cols
+  catchmatrix.day.std[i] <- catchmatrix.day[i]/max(catchmatrix.day[i])}
+
+
+# make sure that 'catchmatrix' and catchmatrix.std are both set up in same order as pru.env.ann
+
 
 
 
