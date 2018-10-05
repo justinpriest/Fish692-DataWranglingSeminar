@@ -36,6 +36,7 @@ leaflet(pru_loc) %>% addTiles() %>% setView(-148.2, 70.35, zoom = 10) %>%
                                 textsize = "16px", direction = "bottom"))
 
 ```
+The two eastern sites are 230 and 214, which are within the zone of influence of the Sag River.  
 
 ## Catch Histograms for select species (Response Variables)
 

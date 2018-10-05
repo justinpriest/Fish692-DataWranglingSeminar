@@ -51,6 +51,41 @@ text(totalNMDS, select=which(pru.env.ann$Station==230), col="green")
 #pretty distinct groupings by site
 
 
+env.vectors.ann <- envfit(totalNMDS, pru.env.ann, permutations = 999)
+plot(env.vectors.ann) # too busy
+
+
+nmdspoints <- as.data.frame(totalNMDS$points[1:72,]) # 72 is the number of year/stn combos
+#row.names(nmdspoints) <- 2001:2017
+nmdspoints$YearStn <- rownames(totalNMDS$points)
+nmdspoints$Year <- as.numeric(substr(nmdspoints$YearStn, 1, 4))
+nmdspoints$Station <- factor(substr(nmdspoints$YearStn, 5, 7))
+nmdspoints$earlymidlate <- ifelse(nmdspoints$Year < 2007, "early", 
+                                                  ifelse(nmdspoints$Year >= 2013, "late", "mid"))
+
+
+ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() +
+  geom_text(aes(label=YearStn, color=Station),hjust=.35, vjust=-.7, size=3)+
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
+
+ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() +
+  geom_text(aes(label=YearStn, color=Year),hjust=.35, vjust=-.7, size=3)+
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
+
+# I used earlymidlate as a color too, but pattern was too slight
+
+
+library(RColorBrewer)
+mypal  <- colorRampPalette(brewer.pal(6, "Greens"))
+mypal2 <- colorRampPalette(brewer.pal(6, "Greys"))
+mypal3 <- colorRampPalette(brewer.pal(6, "Blues"))
+mypal4 <- colorRampPalette(brewer.pal(6, "Reds"))
+
+ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() + 
+  geom_text(aes(label=YearStn, color=interaction(Year, Station))) + 
+  #scale_color_continuous(low = "#3fdeff", high = "#144f5b") +
+  scale_colour_manual(values = c(mypal(18), mypal2(18), mypal3(18), mypal4(18))) +
+  theme(legend.position = "none")
 
 
 ###############
@@ -59,7 +94,7 @@ text(totalNMDS, select=which(pru.env.ann$Station==230), col="green")
 # following example from vegan tutorial, page 33
 # http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf
 
-betad <- betadiver(catchmatrix.std, "z")   # using Arrhenius z measure of beta diversity 
+betad <- betadiver(catchmatrix.std, "z")   # using Arrhenius z measure of beta diversity
 boxplot(betadisper(betad, pru.env.ann$Year ))
 
 adonis(betad ~ Year, pru.env.ann, perm=999) 
@@ -84,6 +119,13 @@ adonis(catchmatrix.std ~ annsal_ppt + annwinddir_ew + annwindspeed_kph +
 
 adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
 
+
+#simper
+
+# use evenness as response variable
+# how to standardize
+# scale - year vs week vs 
+# how to interpret PERMANOVA results
 
 
 
