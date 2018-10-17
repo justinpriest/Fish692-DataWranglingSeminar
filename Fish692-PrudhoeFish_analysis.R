@@ -88,6 +88,30 @@ ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() +
   theme(legend.position = "none")
 
 
+##########################
+## nMDS axis regression ##
+
+plot(MDS1 ~ Year, data = nmdspoints)
+summary(lm(MDS1 ~ Year , data = nmdspoints)) # overall not significant
+summary(lm(MDS2 ~ Year , data = nmdspoints)) # marginally significant
+
+#now let's break it down by Station
+library(broom)
+nmdspoints %>% group_by(Station) %>% do(model = lm(MDS1 ~ Year, data = .)) %>% 
+  tidy(model) # significant trend at Station 230, marginal at 220 
+nmdspoints %>% group_by(Station) %>% do(model = lm(MDS2 ~ Year, data = .)) %>% 
+  tidy(model) # none significant
+
+# visualize this for MDS1
+ggplot(nmdspoints, aes(x=Year, y =MDS1, color = Station)) + 
+  geom_point() + geom_smooth(method = "lm", se=FALSE)
+
+
+
+#################
+### OBJECTIVE 2: Quantify if / how changes are related to environmental variability
+#################
+
 ###############
 ## PERMANOVA ##
 
@@ -126,12 +150,6 @@ adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
 # how to standardize
 # scale - year vs week vs 
 # how to interpret PERMANOVA results
-
-
-
-#################
-### OBJECTIVE 2: Quantify if / how changes are related to environmental variability
-#################
 
 
 
