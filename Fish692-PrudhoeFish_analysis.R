@@ -51,8 +51,6 @@ text(totalNMDS, select=which(pru.env.ann$Station==230), col="green")
 #pretty distinct groupings by site
 
 
-env.vectors.ann <- envfit(totalNMDS, pru.env.ann, permutations = 999)
-plot(env.vectors.ann) # too busy
 
 
 nmdspoints <- as.data.frame(totalNMDS$points[1:72,]) # 72 is the number of year/stn combos
@@ -62,7 +60,7 @@ nmdspoints$Year <- as.numeric(substr(nmdspoints$YearStn, 1, 4))
 nmdspoints$Station <- factor(substr(nmdspoints$YearStn, 5, 7))
 nmdspoints$earlymidlate <- ifelse(nmdspoints$Year < 2007, "early", 
                                                   ifelse(nmdspoints$Year >= 2013, "late", "mid"))
-
+#this arbitrarily divides study in thirds, not the correct approach but good as EDA
 
 ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() +
   geom_text(aes(label=YearStn, color=Station),hjust=.35, vjust=-.7, size=3)+
@@ -71,7 +69,6 @@ ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() +
 ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() +
   geom_text(aes(label=YearStn, color=Year),hjust=.35, vjust=-.7, size=3)+
   theme_bw() + theme(panel.grid.minor = element_blank()) 
-
 # I used earlymidlate as a color too, but pattern was too slight
 
 
@@ -111,6 +108,32 @@ ggplot(nmdspoints, aes(x=Year, y =MDS1, color = Station)) +
 #################
 ### OBJECTIVE 2: Quantify if / how changes are related to environmental variability
 #################
+
+
+## EnvFit ##
+
+env.vectors.ann <- envfit(totalNMDS, pru.env.ann, permutations = 999)
+env.vectors.ann#Year and Station centroids are significant
+# also signif are temp, salin, and marginally wind direction
+
+plot(totalNMDS) 
+
+plot(env.vectors.ann, p.max = 0.02) # >pvals make plot too busy 
+
+ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
+  scale_x_continuous(limits = c(-1, 1)) + scale_y_continuous(limits = c(-1, 1)) +
+  geom_segment(data = data.frame(env.vectors.ann$vectors$arrows), aes(x=0, xend=NMDS1, y=0, yend=NMDS2))
+#these segments don't match the arrows from before because of automatic scaling. I think. not sure
+
+
+ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
+  scale_x_continuous(limits = c(-0.43, 0.4)) + scale_y_continuous(limits = c(-0.4, 0.4)) +
+  geom_segment(data = data.frame(env.vectors.ann$vectors$arrows) %>% 
+                 cbind(r2=env.vectors.ann$vectors$r, pval =env.vectors.ann$vectors$pvals), 
+               aes(x=0, xend=NMDS1 * r2, y=0, yend=NMDS2*r2))
+
+
+
 
 ###############
 ## PERMANOVA ##
@@ -153,7 +176,10 @@ adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
 
 
 
-
+summary(simper(catchmatrix, pru.env.ann$Station))
+# ARCD, ARCS, BDWF, and LSCS account for most of the differences
+summary(simper(catchmatrix.std, pru.env.ann$Station))
+# HBWF, ARFL, DLVN, RDWF explain most of the standardized diffs
 
 
 
