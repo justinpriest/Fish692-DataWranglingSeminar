@@ -70,14 +70,13 @@ sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
 
 
 ##### Catch #####
-# Join the catch and environ data. not used yet but will be useful later on
+# Join the catch and environ data. 7.17.2018 creates 4 lines instead of 1 
 catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)), 
-                          by = c("EndDate" = "Date", "Station" = "Station")) %>%
+                          by = c("EndDate" = "Date", "Station" = "Station")) %>% 
   left_join(watertemps %>% dplyr::select(-c(Year, Month)), 
             by = c("EndDate" = "Date", "Station" = "Station")) %>% 
   left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
-  left_join(sagdisch, by = c("EndDate" = "Date"))
-
+  left_join(sagdisch, by = c("EndDate" = "Date")) 
 
 
 
@@ -86,7 +85,7 @@ catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)
 
 # This creates a dataframe summarizing annual environmental conditions at each site for each year
 # and keep in same order as the corresponding catch dataframe. 
-# the only tricky thing done is that I converted wind from degrees (0-360) to East-West using trig,
+# The only tricky thing done is that I converted wind from degrees (0-360) to East-West using trig,
 # before this I took the mean using circular averaging. Salin & temp are from midwater sampling
 pru.env.ann <- catchenviron %>% dplyr::distinct(Year, Station) %>% 
   mutate(Station=replace(Station, Station==231, 214)) %>% arrange(Year, Station) %>%
@@ -123,7 +122,6 @@ pru.env.day <- catchenviron %>% dplyr::distinct(EndDate, Station) %>%
 
 
 
-
 #############################
 ### Catch Data
 
@@ -139,6 +137,11 @@ catchmatrix.day <- catchenviron %>% group_by(EndDate, Station, Species) %>% summ
 catchmatrix.day$Station[catchmatrix.day$Station == 231] <- 214 # Treat the 231 Station as the precursor to 214
 catchmatrix.day <- catchmatrix.day %>% arrange(EndDate, Station) #was out of order in 2001 after station name change
 
+
+View(catchenviron %>% group_by(Year, EndDate, Station) %>% summarise(count = sum(totcount)) %>% 
+  filter(Year == 2018) )
+
+nrow(catchmatrix.day)
 
 # Exclude rare species:
 # catchmatrix$Station <- as.numeric(catchmatrix$Station) #cheat to include it in shortcut
