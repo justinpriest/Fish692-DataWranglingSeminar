@@ -35,7 +35,7 @@ braydist <- vegdist(catchmatrix.std, method="bray") # This is a dissimilarity ma
 # library(gplots)
 # heatmap.2(as.matrix(braydist))
 
-totalNMDS <- metaMDS(braydist, k=3)
+totalNMDS <- metaMDS(braydist, k=3) # had to choose k=3 to get below 0.20
 
 #Plot, put years by color, add environ vectors
 plot(totalNMDS, display = "sites", type = "n", main = "Annual Results - colored by year grp")
@@ -104,10 +104,29 @@ ggplot(nmdspoints, aes(x=Year, y =MDS1, color = Station)) +
   geom_point() + geom_smooth(method = "lm", se=FALSE)
 
 
+######### lets try with biweekly
+braydist.biwk <- vegdist(catchmatrix.biwk, method="bray")
+totalNMDS.biwk <- metaMDS(braydist.biwk, k=3) #not convergent with k=2
+
+nmdspoints.biwk <- as.data.frame(totalNMDS.biwk$points[1:284,]) # 284 is the number of year/biwk/stn combos
+nmdspoints.biwk$YearStn <- rownames(nmdspoints.biwk)
+nmdspoints.biwk$Year <- as.numeric(substr(nmdspoints.biwk$YearStn, 1, 4))
+nmdspoints.biwk$biweekly <- factor(substr(nmdspoints.biwk$YearStn, 5, 5))
+nmdspoints.biwk$Station <- factor(substr(nmdspoints.biwk$YearStn, 6, 8))
+
+ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point() +
+  geom_text(aes(label=YearStn, color=biweekly),hjust=.35, vjust=-.7, size=3)+
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
+# this is just a cluster, but maybe it's significant. Let's check in the next section
+
 
 #################
 ### OBJECTIVE 2: Quantify if / how changes are related to environmental variability
 #################
+
+# Bioenv
+# which is a mantel type test, combo of which env explain it best
+
 
 
 ## EnvFit ##
@@ -115,6 +134,20 @@ ggplot(nmdspoints, aes(x=Year, y =MDS1, color = Station)) +
 env.vectors.ann <- envfit(totalNMDS, pru.env.ann, permutations = 999)
 env.vectors.ann#Year and Station centroids are significant
 # also signif are temp, salin, and marginally wind direction
+
+env.vectors.biwk <- envfit(totalNMDS.biwk, pru.env.biwk %>% dplyr::select(-winddir_ew), na.rm = TRUE, permutations = 999)
+env.vectors.biwk
+
+
+
+bioenv(braydist ~ annwindspeed_kph + annwinddir + anndisch_cfs + 
+         annsal_ppt + anntemp_c, pru.env.ann)
+
+bioenv(braydist.biwk ~ biwkmeanspeed_kph + biwkmeandir + meandisch_cfs + 
+         Salin_Top + Temp_Top + winddir_ew, pru.env.biwk)
+
+
+
 
 plot(totalNMDS) 
 
