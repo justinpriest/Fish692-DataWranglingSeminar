@@ -124,9 +124,15 @@ ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point() +
 ### OBJECTIVE 2: Quantify if / how changes are related to environmental variability
 #################
 
-# Bioenv
-# which is a mantel type test, combo of which env explain it best
+## Bioenv ##
+# Bioenv is a mantel type test: which combination of environmental var explain it best
+bioenv(braydist ~ annwindspeed_kph + annwinddir + anndisch_cfs + 
+         annsal_ppt + anntemp_c, pru.env.ann)
+#temp and salinity are the best predictors
 
+bioenv(braydist.biwk ~ biwkmeanspeed_kph + biwkmeandir + meandisch_cfs + 
+         Salin_Top + Temp_Top + winddir_ew, pru.env.biwk)
+# Temp, salinity, and wind direction are best subset of env variables
 
 
 ## EnvFit ##
@@ -136,22 +142,15 @@ env.vectors.ann#Year and Station centroids are significant
 # also signif are temp, salin, and marginally wind direction
 
 env.vectors.biwk <- envfit(totalNMDS.biwk, pru.env.biwk %>% dplyr::select(-winddir_ew), na.rm = TRUE, permutations = 999)
-env.vectors.biwk
+env.vectors.biwk # everything is significant
 
-
-
-bioenv(braydist ~ annwindspeed_kph + annwinddir + anndisch_cfs + 
-         annsal_ppt + anntemp_c, pru.env.ann)
-
-bioenv(braydist.biwk ~ biwkmeanspeed_kph + biwkmeandir + meandisch_cfs + 
-         Salin_Top + Temp_Top + winddir_ew, pru.env.biwk)
 
 
 
 
 plot(totalNMDS) 
-
 plot(env.vectors.ann, p.max = 0.02) # >pvals make plot too busy 
+#way to busy to repeat for biweekly scale
 
 ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
   scale_x_continuous(limits = c(-1, 1)) + scale_y_continuous(limits = c(-1, 1)) +
@@ -166,6 +165,12 @@ ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
                aes(x=0, xend=NMDS1 * r2, y=0, yend=NMDS2*r2))
 
 
+
+ggplot(nmdspoints.biwk, aes(x=MDS1, y =MDS2)) + geom_point() +
+  scale_x_continuous(limits = c(-0.25, 0.78)) + scale_y_continuous(limits = c(-0.25, 0.3)) +
+  geom_segment(data = data.frame(env.vectors.biwk$vectors$arrows) %>% 
+                 cbind(r2=env.vectors.biwk$vectors$r, pval =env.vectors.biwk$vectors$pvals), 
+               aes(x=0, xend=NMDS1 * r2, y=0, yend=NMDS2 * r2))
 
 
 ###############
