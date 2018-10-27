@@ -72,11 +72,11 @@ sagdisch <- read.csv("SagDischargeDaily_2001-2018.csv", header = TRUE) %>%
 
 ##### Catch #####
 # Join the catch and environ data. 7.17.2018 creates 4 lines instead of 1 
-catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Year, Month)), 
-                          by = c("EndDate" = "Date", "Station" = "Station")) %>% 
-  left_join(watertemps %>% dplyr::select(-c(Year, Month)), 
-            by = c("EndDate" = "Date", "Station" = "Station")) %>% 
-  left_join(deadhorsewind %>% dplyr::select(-month), by = c("EndDate" = "Date")) %>%
+catchenviron <- left_join(allcatch, watersalin %>% dplyr::select(-c(Month)), 
+                          by = c("Year" = "Year", "EndDate" = "Date", "Station" = "Station")) %>% 
+  left_join(watertemps %>% dplyr::select(-c( Month)), 
+            by = c("Year" = "Year", "EndDate" = "Date", "Station" = "Station")) %>% 
+  left_join(deadhorsewind %>% dplyr::select(-month), by = c("Year" = "Year", "EndDate" = "Date")) %>%
   left_join(sagdisch, by = c("EndDate" = "Date")) 
 
 catchenviron <- catchenviron %>% mutate(biweekly = ifelse(day.of.year <= 196, 1, 
@@ -206,9 +206,13 @@ catchmatrix.day.std <- catchmatrix.day
 for (i in 1:ncol(catchmatrix.day.std)){ #starts at 3 to exclude Year and station cols
   catchmatrix.day.std[i] <- catchmatrix.day[i]/max(catchmatrix.day[i])}
 
+catchmatrix.biwk.stdtrans <- catchmatrix.biwk
+for (i in 1:ncol(catchmatrix.biwk.stdtrans)){ #starts at 3 to exclude Year and station cols
+  catchmatrix.biwk.stdtrans[i] <- (catchmatrix.biwk[i]^0.25)/max((catchmatrix.biwk[i]^0.25))}
+#using 4th root tranform
 
 # make sure that 'catchmatrix' and catchmatrix.std are both set up in same order as pru.env.ann
-
+hist(catchmatrix.biwk.std$ARCS)
 
 
 

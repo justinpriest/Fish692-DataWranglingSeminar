@@ -105,7 +105,7 @@ ggplot(nmdspoints, aes(x=Year, y =MDS1, color = Station)) +
 
 
 ######### lets try with biweekly
-braydist.biwk <- vegdist(catchmatrix.biwk, method="bray")
+braydist.biwk <- vegdist(catchmatrix.biwk.stdtrans, method="bray")
 totalNMDS.biwk <- metaMDS(braydist.biwk, k=3) #not convergent with k=2
 
 nmdspoints.biwk <- as.data.frame(totalNMDS.biwk$points[1:284,]) # 284 is the number of year/biwk/stn combos
@@ -115,7 +115,7 @@ nmdspoints.biwk$biweekly <- factor(substr(nmdspoints.biwk$YearStn, 5, 5))
 nmdspoints.biwk$Station <- factor(substr(nmdspoints.biwk$YearStn, 6, 8))
 
 ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point() +
-  geom_text(aes(label=YearStn, color=biweekly),hjust=.35, vjust=-.7, size=3)+
+  geom_text(aes(label=YearStn, color=Year),hjust=.35, vjust=-.7, size=3)+
   theme_bw() + theme(panel.grid.minor = element_blank()) 
 # this is just a cluster, but maybe it's significant. Let's check in the next section
 
@@ -141,8 +141,10 @@ env.vectors.ann <- envfit(totalNMDS, pru.env.ann, permutations = 999)
 env.vectors.ann#Year and Station centroids are significant
 # also signif are temp, salin, and marginally wind direction
 
-env.vectors.biwk <- envfit(totalNMDS.biwk, pru.env.biwk %>% dplyr::select(-winddir_ew), na.rm = TRUE, permutations = 999)
-env.vectors.biwk # everything is significant
+env.vectors.biwk <- envfit(totalNMDS.biwk, pru.env.biwk %>% 
+                           dplyr::select(-winddir_ew, -Salin_Mid, -Temp_Mid), 
+                           na.rm = TRUE, permutations = 999)
+env.vectors.biwk # salin, wind, and year are signif
 
 
 
@@ -167,10 +169,10 @@ ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
 
 
 ggplot(nmdspoints.biwk, aes(x=MDS1, y =MDS2)) + geom_point() +
-  scale_x_continuous(limits = c(-0.25, 0.78)) + scale_y_continuous(limits = c(-0.25, 0.3)) +
+  scale_x_continuous(limits = c(-0.3, 0.31)) + scale_y_continuous(limits = c(-0.22, 0.3)) +
   geom_segment(data = data.frame(env.vectors.biwk$vectors$arrows) %>% 
                  cbind(r2=env.vectors.biwk$vectors$r, pval =env.vectors.biwk$vectors$pvals), 
-               aes(x=0, xend=NMDS1 * r2, y=0, yend=NMDS2 * r2))
+               aes(x=0, xend=NMDS1 * r2 , y=0, yend=NMDS2 * r2)) #need to fix scale (mult by 5?)
 
 
 ###############
@@ -203,6 +205,11 @@ adonis(catchmatrix.std ~ annsal_ppt + annwinddir_ew + annwindspeed_kph +
 
 
 adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
+
+
+betad.biwk <- betadiver(catchmatrix.biwk.stdtrans , "z") 
+adonis(betad.biwk ~ Salin_Top + Temp_Top +Station + Year + biwkmeanspeed_kph, pru.env.biwk, perm=999) 
+#not working yet
 
 
 #simper
