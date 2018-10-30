@@ -6,6 +6,7 @@
 library(dplyr)
 library(tidyr)
 library(vegan)
+library(broom)
 
 source('Fish692-PrudhoeFish_dataimport.R')
 #this pulls in the following (relevant) dataframes:
@@ -93,7 +94,7 @@ summary(lm(MDS1 ~ Year , data = nmdspoints)) # overall not significant
 summary(lm(MDS2 ~ Year , data = nmdspoints)) # marginally significant
 
 #now let's break it down by Station
-library(broom)
+#library(broom)
 nmdspoints %>% group_by(Station) %>% do(model = lm(MDS1 ~ Year, data = .)) %>% 
   tidy(model) # significant trend at Station 230, marginal at 220 
 nmdspoints %>% group_by(Station) %>% do(model = lm(MDS2 ~ Year, data = .)) %>% 
@@ -104,7 +105,9 @@ ggplot(nmdspoints, aes(x=Year, y =MDS1, color = Station)) +
   geom_point() + geom_smooth(method = "lm", se=FALSE)
 
 
-######### lets try with biweekly
+
+######### BIWEEKLY
+######### lets try with biweekly which is standardized and 4th root transformed
 braydist.biwk <- vegdist(catchmatrix.biwk.stdtrans, method="bray")
 totalNMDS.biwk <- metaMDS(braydist.biwk, k=3) #not convergent with k=2
 
@@ -117,7 +120,44 @@ nmdspoints.biwk$Station <- factor(substr(nmdspoints.biwk$YearStn, 6, 8))
 ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point() +
   geom_text(aes(label=YearStn, color=Year),hjust=.35, vjust=-.7, size=3)+
   theme_bw() + theme(panel.grid.minor = element_blank()) 
-# this is just a cluster, but maybe it's significant. Let's check in the next section
+# this is just a cluster, but maybe it's significant. Check it 
+
+
+summary(lm(MDS1 ~ Year, data = nmdspoints.biwk)) # significant
+summary(lm(MDS2 ~ Year, data = nmdspoints.biwk)) # very significant
+summary(lm(MDS3 ~ Year, data = nmdspoints.biwk)) # not significant
+
+
+#now let's break it down by Station
+
+nmdspoints.biwk %>% group_by(Station) %>% do(model = lm(MDS1 ~ Year, data = .)) %>% 
+  tidy(model) # maybe significant at 218, not signif at any others
+nmdspoints.biwk %>% group_by(Station) %>% do(model = lm(MDS2 ~ Year, data = .)) %>% 
+  tidy(model) # significant at 220, marginal at 214, 218
+
+# visualize this for MDS1 & MDS2
+ggplot(nmdspoints.biwk, aes(x=Year, y =MDS1, color = Station)) + 
+  geom_point() + geom_smooth(method = "lm", se=FALSE)
+ggplot(nmdspoints.biwk, aes(x=Year, y =MDS2, color = Station)) + 
+  geom_point() + geom_smooth(method = "lm", se=FALSE)
+
+#let's clean up the clutter and see if there is a non-linear trend
+ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS1 = mean(MDS1)), aes(x=Year, y =MDS1, color = Station)) + 
+  geom_line() + geom_smooth(method = "lm", se=FALSE)
+ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS2 = mean(MDS2)), aes(x=Year, y =MDS2, color = Station)) + 
+  geom_line() + geom_smooth(method = "lm", se=FALSE)
+# not much evidence of non-linearity
+
+
+
+# correlations
+for(i in colnames(catchmatrix.biwk.stdtrans)){
+  .sppcor <- catchmatrix.biwk.stdtrans %>% gather(Species, abund) %>% filter(Species == i)
+  print(i)
+  print(cor(.sppcor$abund, nmdspoints.biwk$MDS1))
+  print(cor(.sppcor$abund, nmdspoints.biwk$MDS2))
+}
+
 
 
 #################
@@ -152,7 +192,7 @@ env.vectors.biwk # salin, wind, and year are signif
 
 plot(totalNMDS) 
 plot(env.vectors.ann, p.max = 0.02) # >pvals make plot too busy 
-#way to busy to repeat for biweekly scale
+#way too busy to repeat for biweekly scale
 
 ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
   scale_x_continuous(limits = c(-1, 1)) + scale_y_continuous(limits = c(-1, 1)) +
@@ -203,13 +243,22 @@ adonis(catchmatrix.std ~ annsal_ppt + annwinddir_ew + annwindspeed_kph +
          anndisch_cfs + anntemp_c, data=pru.env.ann, perm=999)
 
 
-
 adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
 
 
-betad.biwk <- betadiver(catchmatrix.biwk.stdtrans , "z") 
-adonis(betad.biwk ~ Salin_Top + Temp_Top +Station + Year + biwkmeanspeed_kph, pru.env.biwk, perm=999) 
-#not working yet
+
+
+
+
+
+# because there are rows with NAs in the env data, we need to remove these
+catchmatrix.biwk.stdtrans.sub <- catchmatrix.biwk.stdtrans[!rowSums(is.na(pru.env.biwk)) >0,]
+pru.env.biwk.sub <- pru.env.biwk[!rowSums(is.na(pru.env.biwk)) >0,]
+
+betad.biwk <- betadiver(catchmatrix.biwk.stdtrans.sub , "z") 
+adonis(betad.biwk ~ Temp_Top + Salin_Top + winddir_ew + meandisch_cfs + Year + Station + biweekly, pru.env.biwk.sub, perm=999) 
+#winddir slightly better than speed. Temp signif if added first, but mostly captured by salin
+# nonenviron explan var (Year, Stn, biweekly) are highly significant, esp seasonality (biweekly)
 
 
 #simper
