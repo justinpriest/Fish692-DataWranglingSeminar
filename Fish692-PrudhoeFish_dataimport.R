@@ -145,6 +145,8 @@ pru.env.biwk <- pru.env.day %>%
 
 
 
+
+
 #############################
 ### Catch Data
 
@@ -213,7 +215,6 @@ for (i in 1:ncol(catchmatrix.biwk.stdtrans)){ #starts at 3 to exclude Year and s
 
 # make sure that 'catchmatrix' and catchmatrix.std are both set up in same order as pru.env.ann
 hist(catchmatrix.biwk.std$ARCS)
-
 
 
 ##########################################

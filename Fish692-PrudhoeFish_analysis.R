@@ -255,8 +255,15 @@ adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
 catchmatrix.biwk.stdtrans.sub <- catchmatrix.biwk.stdtrans[!rowSums(is.na(pru.env.biwk)) >0,]
 pru.env.biwk.sub <- pru.env.biwk[!rowSums(is.na(pru.env.biwk)) >0,]
 
+pru.env.biwk.std <- pru.env.biwk.sub
+for (i in 4:ncol(pru.env.biwk.std)){ #starts at 4 to exclude Year, biweekly, and station cols
+  pru.env.biwk.std[i] <- ((pru.env.biwk.sub[i]+1)^0.5)/max(((pru.env.biwk.sub[i]+1)^0.5))}
+#using square root tranform
+
+
+
 betad.biwk <- betadiver(catchmatrix.biwk.stdtrans.sub , "z") 
-adonis(betad.biwk ~ Temp_Top + Salin_Top + winddir_ew + meandisch_cfs + Year + Station + biweekly, pru.env.biwk.sub, perm=999) 
+adonis(betad.biwk ~ Temp_Top + Salin_Top + winddir_ew + meandisch_cfs + Year + Station + biweekly, pru.env.biwk.std, perm=999) 
 #winddir slightly better than speed. Temp signif if added first, but mostly captured by salin
 # nonenviron explan var (Year, Stn, biweekly) are highly significant, esp seasonality (biweekly)
 
@@ -275,7 +282,7 @@ summary(simper(catchmatrix, pru.env.ann$Station))
 summary(simper(catchmatrix.std, pru.env.ann$Station))
 # HBWF, ARFL, DLVN, RDWF explain most of the standardized diffs
 
-
+hist(pru.env.biwk.sub$Temp_Top)
 
 
 #################
