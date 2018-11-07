@@ -19,6 +19,7 @@ head(catchmatrix)     # each row is a year/station, cols are species
 head(catchmatrix.std) # standardize the above 0-1 (percent of max catch)
 head(catchmatrix.day) # each row is a day/station, cols are species
 head(catchmatrix.day.std)
+head(catchmatrix.biwk.stdtrans)
 
 
 #################
@@ -282,14 +283,14 @@ summary(simper(catchmatrix, pru.env.ann$Station))
 summary(simper(catchmatrix.std, pru.env.ann$Station))
 # HBWF, ARFL, DLVN, RDWF explain most of the standardized diffs
 
-hist(pru.env.biwk.sub$Temp_Top)
+
 
 
 #################
 ### OBJECTIVE 3: Assess nature of observed changes: linear trend, nonlinear trend, struc break
 #################
 
-
+catchmatrix.biwk.stdtrans.sub
 
 # explore remane diagram exploring how salinity affects diversity?
 
