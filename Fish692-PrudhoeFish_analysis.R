@@ -64,7 +64,7 @@ nmdspoints$earlymidlate <- ifelse(nmdspoints$Year < 2007, "early",
                                                   ifelse(nmdspoints$Year >= 2013, "late", "mid"))
 #this arbitrarily divides study in thirds, not the correct approach but good as EDA
 
-ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() +
+ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() + #aes(color=Station), cex=5
   geom_text(aes(label=YearStn, color=Station),hjust=.35, vjust=-.7, size=3)+
   theme_bw() + theme(panel.grid.minor = element_blank()) 
 
@@ -119,7 +119,7 @@ nmdspoints.biwk$biweekly <- factor(substr(nmdspoints.biwk$YearStn, 5, 5))
 nmdspoints.biwk$Station <- factor(substr(nmdspoints.biwk$YearStn, 6, 8))
 
 ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point() +
-  geom_text(aes(label=YearStn, color=Year),hjust=.35, vjust=-.7, size=3)+
+  geom_text(aes(label=YearStn, color=Station),hjust=.35, vjust=-.7, size=3)+
   theme_bw() + theme(panel.grid.minor = element_blank()) 
 # this is just a cluster, but maybe it's significant. Check it 
 
