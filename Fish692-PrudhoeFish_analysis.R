@@ -118,10 +118,11 @@ nmdspoints.biwk$Year <- as.numeric(substr(nmdspoints.biwk$YearStn, 1, 4))
 nmdspoints.biwk$biweekly <- factor(substr(nmdspoints.biwk$YearStn, 5, 5))
 nmdspoints.biwk$Station <- factor(substr(nmdspoints.biwk$YearStn, 6, 8))
 
-ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point() +
-  geom_text(aes(label=YearStn, color=Station),hjust=.35, vjust=-.7, size=3)+
-  theme_bw() + theme(panel.grid.minor = element_blank()) 
+ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point(aes(color=Station), cex=5) 
+  #geom_text(aes(label=YearStn, color=Station),hjust=.35, vjust=-.7, size=3)+
+  #theme_bw() + theme(panel.grid.minor = element_blank()) 
 # this is just a cluster, but maybe it's significant. Check it 
+
 
 
 summary(lm(MDS1 ~ Year, data = nmdspoints.biwk)) # significant
@@ -150,15 +151,35 @@ ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS2 = mean(MDS
 # not much evidence of non-linearity
 
 
-
-# correlations
+# CORRELATIONS
+Spp.cor <- data.frame(Species = as.character(""), MDS1.corr = as.numeric(0), 
+                      MDS2.corr = as.numeric(0),  MDS3.corr = as.numeric(0),
+                      stringsAsFactors = FALSE)
+j = 1
 for(i in colnames(catchmatrix.biwk.stdtrans)){
   .sppcor <- catchmatrix.biwk.stdtrans %>% gather(Species, abund) %>% filter(Species == i)
-  print(i)
-  print(cor(.sppcor$abund, nmdspoints.biwk$MDS1))
-  print(cor(.sppcor$abund, nmdspoints.biwk$MDS2))
+  # print(i)
+  # print(cor(.sppcor$abund, nmdspoints.biwk$MDS1))
+  # print(cor(.sppcor$abund, nmdspoints.biwk$MDS2))
+  Spp.cor[j,1] <- i
+  Spp.cor[j,2] <-cor(.sppcor$abund, nmdspoints.biwk$MDS1)
+  Spp.cor[j,3] <-cor(.sppcor$abund, nmdspoints.biwk$MDS2)
+  Spp.cor[j,4] <-cor(.sppcor$abund, nmdspoints.biwk$MDS3)
+  j <- j+1
 }
+Spp.cor
 
+library(scales)
+ggplot(Spp.cor) + 
+  geom_tile(aes(x="MDS1", y=Species, fill = MDS1.corr)) + 
+  geom_tile(aes(x="MDS2", y=Species, fill = MDS2.corr)) +
+  geom_tile(aes(x="MDS3", y=Species, fill = MDS3.corr)) + 
+  scale_fill_gradient2(low = muted("darkred"), #muted requires "scales"
+                       mid = "white", 
+                       high = muted("cornflowerblue"), 
+                       midpoint = 0) +
+  labs(x = "", fill="Corr Coef")
+  
 
 
 #################
@@ -179,7 +200,7 @@ bioenv(braydist.biwk ~ biwkmeanspeed_kph + biwkmeandir + meandisch_cfs +
 ## EnvFit ##
 
 env.vectors.ann <- envfit(totalNMDS, pru.env.ann, permutations = 999)
-env.vectors.ann#Year and Station centroids are significant
+env.vectors.ann # Year and Station centroids are significant
 # also signif are temp, salin, and marginally wind direction
 
 env.vectors.biwk <- envfit(totalNMDS.biwk, pru.env.biwk %>% 
@@ -201,7 +222,7 @@ ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
 #these segments don't match the arrows from before because of automatic scaling. I think. not sure
 
 
-ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
+ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point(aes(color = Station)) +
   scale_x_continuous(limits = c(-0.43, 0.4)) + scale_y_continuous(limits = c(-0.4, 0.4)) +
   geom_segment(data = data.frame(env.vectors.ann$vectors$arrows) %>% 
                  cbind(r2=env.vectors.ann$vectors$r, pval =env.vectors.ann$vectors$pvals), 
@@ -209,11 +230,11 @@ ggplot(nmdspoints, aes(x=MDS1, y =MDS2)) + geom_point() +
 
 
 
-ggplot(nmdspoints.biwk, aes(x=MDS1, y =MDS2)) + geom_point() +
-  scale_x_continuous(limits = c(-0.3, 0.31)) + scale_y_continuous(limits = c(-0.22, 0.3)) +
+ggplot(nmdspoints.biwk, aes(x=MDS1, y =MDS2)) + geom_point(aes(color = Station), cex =5) +
+  scale_x_continuous(limits = c(-0.23, 0.25)) + scale_y_continuous(limits = c(-0.18, 0.25)) +
   geom_segment(data = data.frame(env.vectors.biwk$vectors$arrows) %>% 
                  cbind(r2=env.vectors.biwk$vectors$r, pval =env.vectors.biwk$vectors$pvals), 
-               aes(x=0, xend=NMDS1 * r2 , y=0, yend=NMDS2 * r2)) #need to fix scale (mult by 5?)
+               aes(x=0, xend=NMDS1 * (r2^0.4)/3, y=0, yend=NMDS2 * (r2^0.4)/3), cex =2) #need to fix scale (mult by 5?)
 
 
 ###############
@@ -223,7 +244,7 @@ ggplot(nmdspoints.biwk, aes(x=MDS1, y =MDS2)) + geom_point() +
 # http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf
 
 betad <- betadiver(catchmatrix.std, "z")   # using Arrhenius z measure of beta diversity
-boxplot(betadisper(betad, pru.env.ann$Year ))
+boxplot(betadisper(betad, pru.env.ann$Year), main = "Annual")
 
 adonis(betad ~ Year, pru.env.ann, perm=999) 
 adonis(betad ~ Station, pru.env.ann, perm=999) 
@@ -236,7 +257,7 @@ adonis(betad ~ annwindspeed_kph, pru.env.ann, perm=999) # not significant
 adonis(betad ~ annsal_ppt + anntemp_c +  Station + Year, pru.env.ann, perm=999) 
 #note that terms are sequential so order matters!
 
-boxplot(betadisper(betad, pru.env.ann$Station ))
+boxplot(betadisper(betad, pru.env.ann$Station), main = "Annual")
 #note that the western and eastern sites look similar
 
 
@@ -267,24 +288,21 @@ betad.biwk <- betadiver(catchmatrix.biwk.stdtrans.sub , "z")
 adonis(betad.biwk ~ Temp_Top + Salin_Top + winddir_ew + meandisch_cfs + Year + Station + biweekly, pru.env.biwk.std, perm=999) 
 #winddir slightly better than speed. Temp signif if added first, but mostly captured by salin
 # nonenviron explan var (Year, Stn, biweekly) are highly significant, esp seasonality (biweekly)
-
-
-#simper
-
-# use evenness as response variable
-# how to standardize
-# scale - year vs week vs 
-# how to interpret PERMANOVA results
+boxplot(betadisper(betad.biwk, pru.env.biwk.sub$Station), main = "Biweekly")
+boxplot(betadisper(betad.biwk, pru.env.biwk.sub$Year), main = "Biweekly")
+boxplot(betadisper(betad.biwk, pru.env.biwk.sub$biweekly), main = "Biweekly")
 
 
 
+# Simper
 summary(simper(catchmatrix, pru.env.ann$Station))
 # ARCD, ARCS, BDWF, and LSCS account for most of the differences
 summary(simper(catchmatrix.std, pru.env.ann$Station))
 # HBWF, ARFL, DLVN, RDWF explain most of the standardized diffs
 
-
-
+summary(simper(catchmatrix.biwk.stdtrans, pru.env.biwk.std$Year))
+summary(simper(catchmatrix.biwk.stdtrans, pru.env.biwk.std$Station))
+# Seems like THSB, RDWF, PINK, PCHG are most common? Hard to tell
 
 #################
 ### OBJECTIVE 3: Assess nature of observed changes: linear trend, nonlinear trend, struc break
@@ -292,5 +310,11 @@ summary(simper(catchmatrix.std, pru.env.ann$Station))
 
 catchmatrix.biwk.stdtrans.sub
 
+
+
+
+# Other ideas:
 # explore remane diagram exploring how salinity affects diversity?
+# use evenness as response variable?
+
 
