@@ -346,16 +346,15 @@ summary(gam(MDS3 ~ s(Year) + Station + biweekly, data = nmdspoints.biwk))
 
 
 
-
 #Finally, test for structural breaks
-strucsummary <- function(nmdsdataframe=nmdspoints.biwk, station){
+strucsummary <- function(nmdsdataframe=nmdspoints.biwk, station, mds = "MDS1"){
   #This function takes the nmds dataframe, filters it for a specific station,
   # turns it into a time series by year, then returns some summaries & plots
   # using the library "strucchange" 
   require(strucchange)
   require(dplyr)
   .datdf <- nmdsdataframe
-  .timeseries <- .datdf %>% filter(Station == station) %>% dplyr::select(MDS1) %>% as.ts(MDS1)
+  .timeseries <- .datdf %>% filter(Station == station) %>% dplyr::select(mds) %>% as.ts(mds)
   .fs.timeser <- Fstats(.timeseries ~1)
   print(plot(.fs.timeser))
   print(lines(breakpoints(.fs.timeser)))
@@ -364,14 +363,19 @@ strucsummary <- function(nmdsdataframe=nmdspoints.biwk, station){
   print(summary(breakpoints(.timeseries ~ 1)))
 }
 
-strucsummary(nmdspoints.biwk, station=220) 
-strucsummary(nmdspoints.biwk, station=214)
-strucsummary(nmdspoints.biwk, station=218)
-strucsummary(nmdspoints.biwk, station=230)
+strucsummary(nmdspoints.biwk, station=220, mds = "MDS1") 
+strucsummary(nmdspoints.biwk, station=214, mds = "MDS1")
+strucsummary(nmdspoints.biwk, station=218, mds = "MDS1")
+strucsummary(nmdspoints.biwk, station=230, mds = "MDS1")
+#Summary: For MDS1, all stations have 0 optimal TS breakpoints, though most have 1 breakpoint close behind
 
-#Summary: All stations have 0 optimal TS breakpoints, though most have 1 breakpoint close behind
+strucsummary(nmdspoints.biwk, station=220, mds = "MDS2") 
+strucsummary(nmdspoints.biwk, station=214, mds = "MDS2")
+strucsummary(nmdspoints.biwk, station=218, mds = "MDS2")
+strucsummary(nmdspoints.biwk, station=230, mds = "MDS2")
+# Summary: All except 230 have 1 optimal breakpoint
 
-
+# Remaining: Do all of Section 3 over again using richness, diversity, and/or 
 
 
 
