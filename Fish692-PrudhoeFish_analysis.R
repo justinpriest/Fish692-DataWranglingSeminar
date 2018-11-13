@@ -7,6 +7,8 @@ library(dplyr)
 library(tidyr)
 library(vegan)
 library(broom)
+library(strucchange)
+library(mgcv)
 
 source('Fish692-PrudhoeFish_dataimport.R')
 #this pulls in the following (relevant) dataframes:
@@ -125,30 +127,6 @@ ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point(aes(color=Station), ce
 
 
 
-summary(lm(MDS1 ~ Year, data = nmdspoints.biwk)) # significant
-summary(lm(MDS2 ~ Year, data = nmdspoints.biwk)) # very significant
-summary(lm(MDS3 ~ Year, data = nmdspoints.biwk)) # not significant
-
-
-#now let's break it down by Station
-
-nmdspoints.biwk %>% group_by(Station) %>% do(model = lm(MDS1 ~ Year, data = .)) %>% 
-  tidy(model) # maybe significant at 218, not signif at any others
-nmdspoints.biwk %>% group_by(Station) %>% do(model = lm(MDS2 ~ Year, data = .)) %>% 
-  tidy(model) # significant at 220, marginal at 214, 218
-
-# visualize this for MDS1 & MDS2
-ggplot(nmdspoints.biwk, aes(x=Year, y =MDS1, color = Station)) + 
-  geom_point() + geom_smooth(method = "lm", se=FALSE)
-ggplot(nmdspoints.biwk, aes(x=Year, y =MDS2, color = Station)) + 
-  geom_point() + geom_smooth(method = "lm", se=FALSE)
-
-#let's clean up the clutter and see if there is a non-linear trend
-ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS1 = mean(MDS1)), aes(x=Year, y =MDS1, color = Station)) + 
-  geom_line() + geom_smooth(method = "lm", se=FALSE)
-ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS2 = mean(MDS2)), aes(x=Year, y =MDS2, color = Station)) + 
-  geom_line() + geom_smooth(method = "lm", se=FALSE)
-# not much evidence of non-linearity
 
 
 # CORRELATIONS
@@ -304,11 +282,96 @@ summary(simper(catchmatrix.biwk.stdtrans, pru.env.biwk.std$Year))
 summary(simper(catchmatrix.biwk.stdtrans, pru.env.biwk.std$Station))
 # Seems like THSB, RDWF, PINK, PCHG are most common? Hard to tell
 
+
+
+
+
 #################
 ### OBJECTIVE 3: Assess nature of observed changes: linear trend, nonlinear trend, struc break
 #################
 
-catchmatrix.biwk.stdtrans.sub
+#base plot for ppt Objective 3 TS demo slide 
+#ggplot(nmdspoints.biwk %>% filter(Station==220, biweekly == 2), aes(x=Year, y=MDS1)) + geom_line(cex=3)
+
+
+summary(lm(MDS1 ~ Year, data = nmdspoints.biwk)) # significant
+summary(lm(MDS2 ~ Year, data = nmdspoints.biwk)) # very significant
+summary(lm(MDS3 ~ Year, data = nmdspoints.biwk)) # not significant
+
+
+#now let's break it down by Station
+nmdspoints.biwk %>% group_by(Station) %>% do(model = lm(MDS1 ~ Year, data = .)) %>% 
+  tidy(model) # maybe significant at 218, not signif at any others
+nmdspoints.biwk %>% group_by(Station) %>% do(model = lm(MDS2 ~ Year, data = .)) %>% 
+  tidy(model) # significant at 220, marginal at 214, 218
+
+# visualize this for MDS1 & MDS2
+ggplot(nmdspoints.biwk, aes(x=Year, y =MDS1, color = Station)) + 
+  geom_point() + geom_smooth(method = "lm", se=FALSE)
+ggplot(nmdspoints.biwk, aes(x=Year, y =MDS2, color = Station)) + 
+  geom_point() + geom_smooth(method = "lm", se=FALSE)
+
+#let's clean up the clutter and see if there is a non-linear trend
+ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS1 = mean(MDS1)), 
+       aes(x=Year, y =MDS1, color = Station)) + geom_line(cex=2.5) + geom_smooth(method = "lm", se=FALSE, cex=1.25)
+ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS2 = mean(MDS2)), 
+       aes(x=Year, y =MDS2, color = Station)) + geom_line(cex=2.5) + geom_smooth(method = "lm", se=FALSE, cex=1.25)
+# looks mostly linear but we'll test that soon
+
+
+#Let's fit a nested effects linear model to account for Station effects by Year
+model.lm1 <- lm(MDS1 ~ Station / Year - 1, data = nmdspoints.biwk) # nested effect linear model
+summary(model.lm1) # two marginal
+model.lm2 <- lm(MDS2 ~ Station / Year - 1, data = nmdspoints.biwk)
+summary(model.lm2) # several signif
+model.lm3 <- lm(MDS3 ~ Station / Year - 1, data = nmdspoints.biwk)
+summary(model.lm3) # nothing signif
+
+plot(model.lm1) #diagnostics look good
+plot(model.lm2)
+plot(model.lm3)
+#summary: it's a better fit when we account for station differences
+
+(nmdspoints.biwk %>% group_by(Station) %>% do(model = lm(MDS1 ~ Year, data = .)))$model
+
+
+#Now we test for non-linear trends
+summary(gam(MDS1 ~ Year + Station + biweekly, data = nmdspoints.biwk))  # library(mgcv)
+summary(gam(MDS1 ~ s(Year) + Station + biweekly, data = nmdspoints.biwk))
+summary(gam(MDS2 ~ Year + Station + biweekly, data = nmdspoints.biwk))
+summary(gam(MDS2 ~ s(Year) + Station + biweekly, data = nmdspoints.biwk))
+summary(gam(MDS3 ~ Year + Station + biweekly, data = nmdspoints.biwk))
+summary(gam(MDS3 ~ s(Year) + Station + biweekly, data = nmdspoints.biwk))
+# summary: MDS1&2 have better fit with nonlinear, no diff MDS3
+
+
+
+
+#Finally, test for structural breaks
+strucsummary <- function(nmdsdataframe=nmdspoints.biwk, station){
+  #This function takes the nmds dataframe, filters it for a specific station,
+  # turns it into a time series by year, then returns some summaries & plots
+  # using the library "strucchange" 
+  require(strucchange)
+  require(dplyr)
+  .datdf <- nmdsdataframe
+  .timeseries <- .datdf %>% filter(Station == station) %>% dplyr::select(MDS1) %>% as.ts(MDS1)
+  .fs.timeser <- Fstats(.timeseries ~1)
+  print(plot(.fs.timeser))
+  print(lines(breakpoints(.fs.timeser)))
+  print(breakpoints(.fs.timeser))
+  print("====================")
+  print(summary(breakpoints(.timeseries ~ 1)))
+}
+
+strucsummary(nmdspoints.biwk, station=220) 
+strucsummary(nmdspoints.biwk, station=214)
+strucsummary(nmdspoints.biwk, station=218)
+strucsummary(nmdspoints.biwk, station=230)
+
+#Summary: All stations have 0 optimal TS breakpoints, though most have 1 breakpoint close behind
+
+
 
 
 
