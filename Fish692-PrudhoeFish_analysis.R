@@ -7,6 +7,7 @@ library(dplyr)
 library(tidyr)
 library(vegan)
 library(broom)
+library(RColorBrewer)
 library(strucchange)
 library(mgcv)
 
@@ -75,6 +76,11 @@ ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point() +
   theme_bw() + theme(panel.grid.minor = element_blank()) 
 # I used earlymidlate as a color too, but pattern was too slight
 
+ggplot(nmdspoints, aes(x=MDS1, y=MDS2)) + geom_point(aes(color=Station), cex=5) + 
+  scale_color_manual(values =  brewer.pal(4, "Set2")) +
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
+
+
 
 library(RColorBrewer)
 mypal  <- colorRampPalette(brewer.pal(6, "Greens"))
@@ -120,12 +126,18 @@ nmdspoints.biwk$Year <- as.numeric(substr(nmdspoints.biwk$YearStn, 1, 4))
 nmdspoints.biwk$biweekly <- factor(substr(nmdspoints.biwk$YearStn, 5, 5))
 nmdspoints.biwk$Station <- factor(substr(nmdspoints.biwk$YearStn, 6, 8))
 
-ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point(aes(color=Station), cex=5) 
+
+ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point(aes(color=Station), cex=5) +
   #geom_text(aes(label=YearStn, color=Station),hjust=.35, vjust=-.7, size=3)+
-  #theme_bw() + theme(panel.grid.minor = element_blank()) 
-# this is just a cluster, but maybe it's significant. Check it 
+  scale_color_manual(values =  brewer.pal(4, "Set2")) +
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
+# Looks like the sites ordinate out separately  
 
 
+library(colorspace)
+ggplot(nmdspoints.biwk, aes(x=MDS1, y=MDS2)) + geom_point(aes(color=biweekly), cex=5) + 
+  scale_color_manual(values = heat_hcl(6, power= c(1, 1.5))) +
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
 
 
 
@@ -212,11 +224,13 @@ ggplot(nmdspoints.biwk, aes(x=MDS1, y =MDS2)) + geom_point(aes(color = Station),
   scale_x_continuous(limits = c(-0.23, 0.25)) + scale_y_continuous(limits = c(-0.18, 0.25)) +
   geom_segment(data = data.frame(env.vectors.biwk$vectors$arrows) %>% 
                  cbind(r2=env.vectors.biwk$vectors$r, pval =env.vectors.biwk$vectors$pvals), 
-               aes(x=0, xend=NMDS1 * (r2^0.4)/3, y=0, yend=NMDS2 * (r2^0.4)/3), cex =2) #need to fix scale (mult by 5?)
+               aes(x=0, xend=NMDS1 * (r2^0.4)/3, y=0, yend=NMDS2 * (r2^0.4)/3), cex =2) +#need to fix scale (mult by 5?)
+  scale_color_manual(values =  brewer.pal(4, "Set2")) +
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
 
 
 ###############
-## PERMANOVA ##
+## ANNUAL PERMANOVA ##
 
 # following example from vegan tutorial, page 33
 # http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf
@@ -246,10 +260,8 @@ adonis(catchmatrix.std ~ annsal_ppt + annwinddir_ew + annwindspeed_kph +
 adonis(braydist ~ Year + Station, data = pru.env.ann, perm = 9999)
 
 
-
-
-
-
+######
+## BIWEEKLY PERMANOVA ##
 
 # because there are rows with NAs in the env data, we need to remove these
 catchmatrix.biwk.stdtrans.sub <- catchmatrix.biwk.stdtrans[!rowSums(is.na(pru.env.biwk)) >0,]
@@ -291,7 +303,10 @@ summary(simper(catchmatrix.biwk.stdtrans, pru.env.biwk.std$Station))
 #################
 
 #base plot for ppt Objective 3 TS demo slide 
-#ggplot(nmdspoints.biwk %>% filter(Station==220, biweekly == 2), aes(x=Year, y=MDS1)) + geom_line(cex=3)
+#
+ggplot(nmdspoints.biwk %>% filter(Station==220, biweekly == 2), aes(x=Year, y=MDS1)) + geom_line(cex=3) +
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
+  
 
 
 summary(lm(MDS1 ~ Year, data = nmdspoints.biwk)) # significant
@@ -313,9 +328,16 @@ ggplot(nmdspoints.biwk, aes(x=Year, y =MDS2, color = Station)) +
 
 #let's clean up the clutter and see if there is a non-linear trend
 ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS1 = mean(MDS1)), 
-       aes(x=Year, y =MDS1, color = Station)) + geom_line(cex=2.5) + geom_smooth(method = "lm", se=FALSE, cex=1.25)
+       aes(x=Year, y =MDS1, color = Station)) + 
+  geom_line(cex=2.5) + geom_smooth(method = "lm", se=FALSE, cex=1.25) +
+  scale_color_manual(values =  brewer.pal(4, "Set2")) +
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
+
 ggplot(nmdspoints.biwk %>% group_by(Year, Station) %>% summarise(MDS2 = mean(MDS2)), 
-       aes(x=Year, y =MDS2, color = Station)) + geom_line(cex=2.5) + geom_smooth(method = "lm", se=FALSE, cex=1.25)
+       aes(x=Year, y =MDS2, color = Station)) + 
+  geom_line(cex=2.5) + geom_smooth(method = "lm", se=FALSE, cex=1.25) +
+  scale_color_manual(values =  brewer.pal(4, "Set2")) +
+  theme_bw() + theme(panel.grid.minor = element_blank()) 
 # looks mostly linear but we'll test that soon
 
 
