@@ -118,7 +118,7 @@ ggplot(nmdspoints, aes(x=Year, y =MDS1, color = Station)) +
 ######### BIWEEKLY
 ######### lets try with biweekly which is standardized and 4th root transformed
 braydist.biwk <- vegdist(catchmatrix.biwk.stdtrans, method="bray")
-totalNMDS.biwk <- metaMDS(braydist.biwk, k=3) #not convergent with k=2
+totalNMDS.biwk <- metaMDS(braydist.biwk, k=3)  #not convergent with k=2
 
 nmdspoints.biwk <- as.data.frame(totalNMDS.biwk$points[1:284,]) # 284 is the number of year/biwk/stn combos
 nmdspoints.biwk$YearStn <- rownames(nmdspoints.biwk)
